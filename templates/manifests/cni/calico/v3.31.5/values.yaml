@@ -17,14 +17,18 @@ whisker:
 # Affinity for the tigera-operator pod.
 affinity:
   nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: node-role.kubernetes.io/CONTROLPLANE_NODESELECTOR
-          operator: Exists
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: node-role.kubernetes.io/CONTROLPLANE_NODESELECTOR
+              operator: Exists
+
   podAntiAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-    - labelSelector:
-        matchLabels:
-          k8s-app: tigera-operator
-      topologyKey: kubernetes.io/hostname
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              k8s-app: tigera-operator
+          topologyKey: kubernetes.io/hostname

@@ -22,17 +22,20 @@ spec:
         kubernetes.io/os: linux
       affinity:
         nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
               - key: node-role.kubernetes.io/{{ kubernetes_calico_controlplane_nodeselector }}
                 operator: Exists
+            weight: 100
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchLabels:
-                k8s-app: tigera-operator
-            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  k8s-app: tigera-operator
+              topologyKey: kubernetes.io/hostname
+            weight: 100
       tolerations:
         - effect: NoExecute
           operator: Exists
