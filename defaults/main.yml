@@ -15,6 +15,9 @@ kubernetes_haproxy_packages:
   # - policycoreutils-python-utils
 kubernetes_haproxy_oom_score_adjust: -900
 kubernetes_haproxy_restart_sec: 5s
+# Per-master HAProxy backend weights: {"master01.example.com": 150}
+kubernetes_haproxy_weights: {}
+kubernetes_disable_firewalld: true
 
 kubernetes_dnf_repo: "" # "https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[:2] | join('.') }}/rpm/"
 kubernetes_dnf_repo_username: ""
@@ -161,6 +164,9 @@ kubernetes_calico_observability_enabled: false
 kubernetes_calico_dataplane_type: "Iptables"
 # One of: IPIP, VXLAN, IPIPCrossSubnet, VXLANCrossSubnet, None https://docs.tigera.io/calico/latest/reference/installation/api#encapsulationtype
 kubernetes_calico_encapulation_type: "IPIP"
+# Node IP autodetection for calico-node: "first-found", "interface=eth.*", "can-reach=10.0.0.1", "cidr=10.0.0.0/8"
+# Empty — Calico picks the node address on its own
+kubernetes_calico_node_address_autodetection: ""
 # https://github.com/projectcalico/calico/releases/latest/download/calicoctl-linux-amd64
 kubernetes_calicoctl_url: ""
 
@@ -176,7 +182,7 @@ kubernetes_loadbalancer_nginx_config_dir: "/etc/nginx"
 # Metrics-server
 kubernetes_extensions_metrics_server_image_repo: "{{ kubernetes_image_repository }}/metrics-server/metrics-server"
 kubernetes_extensions_metrics_server_image_tag: "v0.8.1"
-kubernetes_extensions_metrics_server_node_labels: "app"
+kubernetes_extensions_metrics_server_node_labels: "control-plane"
 
 # Kubernetes traefik ingress setting
 # Helm chart version determines the manifest structure
