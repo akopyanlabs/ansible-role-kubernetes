@@ -19,7 +19,7 @@ spec:
                 - weight: 100
                   preference:
                     matchExpressions:
-                      - key: node-role.kubernetes.io/CONTROLPLANE_NODESELECTOR
+                      - key: node-role.kubernetes.io/{{ kubernetes_calico_controlplane_nodeselector }}
                         operator: Exists
 
             podAntiAffinity:
@@ -28,7 +28,7 @@ spec:
                   podAffinityTerm:
                     labelSelector:
                       matchLabels:
-                        k8s-app: tigera-operator
+                        k8s-app: calico-typha
                     topologyKey: kubernetes.io/hostname
 
   calicoKubeControllersDeployment:
@@ -41,7 +41,7 @@ spec:
                 - weight: 100
                   preference:
                     matchExpressions:
-                      - key: node-role.kubernetes.io/CONTROLPLANE_NODESELECTOR
+                      - key: node-role.kubernetes.io/{{ kubernetes_calico_controlplane_nodeselector }}
                         operator: Exists
 
             podAntiAffinity:
@@ -50,12 +50,15 @@ spec:
                   podAffinityTerm:
                     labelSelector:
                       matchLabels:
-                        k8s-app: tigera-operator
+                        k8s-app: calico-kube-controllers
                     topologyKey: kubernetes.io/hostname
 
   # Configures Calico networking.
   calicoNetwork:
     linuxDataplane: "{{ kubernetes_calico_dataplane_type }}"
+{% if kubernetes_calico_node_address_autodetection | default('') | length > 0 %}
+    nodeAddressAutodetectionV4: "{{ kubernetes_calico_node_address_autodetection }}"
+{% endif %}
 {% if kubernetes_calico_encapulation_type in ["VXLAN", "VXLANCrossSubnet"] %}
     bgp: Disabled
 {% endif %}
@@ -100,7 +103,7 @@ spec:
                 - weight: 100
                   preference:
                     matchExpressions:
-                      - key: node-role.kubernetes.io/CONTROLPLANE_NODESELECTOR
+                      - key: node-role.kubernetes.io/{{ kubernetes_calico_controlplane_nodeselector }}
                         operator: Exists
 
             podAntiAffinity:
@@ -109,7 +112,7 @@ spec:
                   podAffinityTerm:
                     labelSelector:
                       matchLabels:
-                        k8s-app: tigera-operator
+                        k8s-app: calico-apiserver
                     topologyKey: kubernetes.io/hostname
 {% endif %}
 
