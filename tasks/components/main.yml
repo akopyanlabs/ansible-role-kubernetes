@@ -5,8 +5,11 @@
       delegate_to: "{{ item }}"
       delegate_facts: true
       loop: "{{ groups[kubernetes_master_group_name] }}"
+      # Факты нужны для haproxy-шаблона; при --limit добираем недостающие,
+      # на полном прогоне факты уже собраны и таска пропускается
+      when: hostvars[item].ansible_default_ipv4 is not defined
   tags:
-    - kubernetes_components_haproxy_config
+    - always
 
 - name: "Kubernetes Components: -- Install packages and apply OS-specific fixes --"
   block:
@@ -79,6 +82,11 @@
 
 - name: "Kubernetes Components: -- Configure containerd --"
   block:
+    - name: "Kubernetes Components: -- Ensure containerd directory exists --"
+      ansible.builtin.file:
+        path: "/etc/containerd"
+        state: directory
+        mode: "0755"
     - name: "Kubernetes Components: -- Copy containerd configuration template --"
       ansible.builtin.template:
         src: containerd/config.toml.j2

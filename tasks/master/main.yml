@@ -2,7 +2,30 @@
   ansible.builtin.import_tasks:
     file: enviroment/get-master.yml
 
+- name: "Kubernetes: -- Check if master node is already joined --"
+  ansible.builtin.stat:
+    path: "/etc/kubernetes/kubelet.conf"
+  register: kubernetes_master_kubelet_conf_stat
+  become: true
+
+- name: "Kubernetes: -- Set list of joined master nodes --"
+  ansible.builtin.set_fact:
+    kubernetes_masters_joined: >-
+      {{ ansible_play_hosts
+         | intersect(groups[kubernetes_master_group_name])
+         | select('in', hostvars | dict2items
+                  | selectattr('value.kubernetes_master_kubelet_conf_stat.stat.exists', 'equalto', true)
+                  | map(attribute='key') | list) }}
+
+- name: "Kubernetes: -- Set list of master nodes pending join --"
+  ansible.builtin.set_fact:
+    kubernetes_masters_pending_join: >-
+      {{ ansible_play_hosts
+         | intersect(groups[kubernetes_master_group_name])
+         | difference([administrative_master_node] + kubernetes_masters_joined) }}
+
 - name: "Kubernetes: -- Generate join command--"
+  when: kubernetes_masters_pending_join | length > 0
   block:
     - name: "Kubernetes: -- Init upload-certs phase --"
       ansible.builtin.command:
@@ -21,12 +44,6 @@
   become: true
   run_once: true
   delegate_to: "{{ administrative_master_node }}"
-
-- name: "Kubernetes: -- Check if master node is already joined --"
-  ansible.builtin.stat:
-    path: "/etc/kubernetes/kubelet.conf"
-  register: kubernetes_master_kubelet_conf_stat
-  become: true
 
 - name: "Kubernetes: -- Join master node --"
   become: true

@@ -2,24 +2,41 @@
   ansible.builtin.import_tasks:
     file: enviroment/get-master.yml
 
-- name: "Kubernetes: -- Get join command --"
-  ansible.builtin.command:
-    cmd: "kubeadm token create --ttl 120m --print-join-command"
-  register: k8s_join_command
-  run_once: true
-  delegate_to: "{{ administrative_master_node }}"
-
 - name: "Kubernetes: -- Check if worker node is already joined --"
   ansible.builtin.stat:
     path: "/etc/kubernetes/kubelet.conf"
   register: kubernetes_worker_kubelet_conf_stat
   become: true
 
+- name: "Kubernetes: -- Set list of joined worker nodes --"
+  ansible.builtin.set_fact:
+    kubernetes_workers_joined: >-
+      {{ ansible_play_hosts
+         | intersect(groups[kubernetes_worker_group_name] | default([]))
+         | select('in', hostvars | dict2items
+                  | selectattr('value.kubernetes_worker_kubelet_conf_stat.stat.exists', 'equalto', true)
+                  | map(attribute='key') | list) }}
+
+- name: "Kubernetes: -- Set list of worker nodes pending join --"
+  ansible.builtin.set_fact:
+    kubernetes_workers_pending_join: >-
+      {{ ansible_play_hosts
+         | intersect(groups[kubernetes_worker_group_name] | default([]))
+         | difference(kubernetes_workers_joined) }}
+
+- name: "Kubernetes: -- Get join command --"
+  ansible.builtin.command:
+    cmd: "kubeadm token create --ttl 120m --print-join-command"
+  register: k8s_join_command
+  run_once: true
+  delegate_to: "{{ administrative_master_node }}"
+  when: kubernetes_workers_pending_join | length > 0
+
 - name: "Kubernetes: -- Join worker node --"
   become: true
   when:
     - inventory_hostname != administrative_master_node
-    - inventory_hostname in groups[kubernetes_worker_group_name]
+    - inventory_hostname in (groups[kubernetes_worker_group_name] | default([]))
     - not (kubernetes_worker_kubelet_conf_stat.stat.exists | default(false))
   block:
     - name: "Kubernetes: -- Prepare OS  --"

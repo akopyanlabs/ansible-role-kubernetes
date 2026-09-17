@@ -116,4 +116,4 @@
       group: "root",
     }
   become: true
-  when: inventory_hostname in groups[kubernetes_worker_group_name]
+  when: inventory_hostname in (groups[kubernetes_worker_group_name] | default([]))
