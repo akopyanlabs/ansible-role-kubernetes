@@ -4,6 +4,34 @@
 
 Формат ориентирован на Keep a Changelog.
 
+## [1.4.0] - 2026-09-17
+
+### Fixed
+
+- **Добавление master-ноды с `--limit`**: блок gather facts в `tasks/components/main.yml` больше не привязан к узкому тегу и добирает факты (`ansible_default_ipv4`) только недостающих мастеров — haproxy-шаблон больше не падает на undefined при запуске `--tags kubernetes_add_master_node --limit <новая нода>`.
+- **Проверка «нода уже присоединена»** (`tasks/master/main.yml`, `tasks/worker/main.yml`): `stat kubelet.conf` выполняется ДО генерации `upload-certs`/join-токена; токен создаётся только если есть ноды к присоединению.
+- **Masters-only inventory**: обращение к `groups[kubernetes_worker_group_name]` в `tasks/worker/main.yml` и `tasks/cis-settings/main.yml` защищено `| default([])` — `kubernetes_first_init` без группы воркеров больше не падает.
+- **Calico `init-calico.yml.j2`**: литеральный плейсхолдер `CONTROLPLANE_NODESELECTOR` (не обрабатывается build-скриптом) заменён на `{{ kubernetes_calico_controlplane_nodeselector }}`; podAntiAffinity typha/kube-controllers/apiserver использует собственные лейблы (`calico-typha`, `calico-kube-controllers`, `calico-apiserver`) вместо `tigera-operator`.
+- **JWT auth-config** (`templates/kubeapi/auth-config.yml.j2`): заголовок списка `audiences:` вынесен из `{% for %}` — при двух и более audiences рендерился невалидный YAML.
+- **Docker apt-репозиторий**: дистрибутив больше не захардкожен (`bullseye`), используется `{{ ansible_distribution_release }}`.
+- **fetch admin.conf**: права `0777` → `0600`.
+- **`kubernetes_check_existing_nodes`**: сравнение с кластером теперь по master- и worker-группам.
+- Дублирующееся имя таски kubelet-csr-approver в `tasks/main.yml`.
+
+### Changed
+
+- **BREAKING: metrics-server** — жёсткий `nodeSelector` заменён на preferred nodeAffinity + tolerations `node-role.kubernetes.io/control-plane`; дефолт `kubernetes_extensions_metrics_server_node_labels: "app"` → `"control-plane"`. Поды по умолчанию едут на control-plane ноды; прежнее поведение требовало лейбл со значением `true`, теперь достаточно наличия лейбла.
+- **Affinity required → preferred везде** (продолжение работы из 1.3.0): CoreDNS-патч (`patch-core-dns.yml`) и kubelet-csr-approver переведены на `preferredDuringSchedulingIgnoredDuringExecution` с weight 100.
+
+### Added
+
+- **Перезапуск подов при изменении конфигов**: CoreDNS Deployment получает аннотацию `checksum/config` (checksum Corefile) — изменение конфига провоцирует rolling restart; NodeLocal DNS DaemonSet перезапускается при изменении применённого манифеста.
+- **Ожидание готовности Calico**: после `init-calico` роль ждёт `Installation/status.conditions[Ready]=True` (retries 30 × 10s) — плейбук останавливается, если Calico не установился.
+- **Calico node IP autodetection**: переменная `kubernetes_calico_node_address_autodetection` (`first-found`, `interface=eth.*`, `can-reach=…`; пусто — не рендерится).
+- **Отключение firewalld** в `tasks/prepare` (no-op, если не установлен; переменная `kubernetes_disable_firewalld: true`).
+- **Веса HAProxy backend per-master**: переменная `kubernetes_haproxy_weights` (map host → weight, дефолт 100).
+- **README**: раздел «Интеграция с Keycloak (OIDC)» — переменные, настройка realm/client, ClusterRoleBinding на группы, kubelogin.
+
 ## [1.3.0] - 2026-05-07
 
 ### Changed

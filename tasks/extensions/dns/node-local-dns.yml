@@ -31,6 +31,21 @@
         server_side_apply:
           field_manager: ansible
           force_conflicts: true
+      register: kubernetes_node_local_dns_apply_result
+    - name: "Kubernetes: -- Restart node local dns if config changed --"
+      # ConfigMap и DaemonSet в одном манифесте: поды не перечитывают Corefile сами
+      kubernetes.core.k8s:
+        state: patched
+        kind: DaemonSet
+        name: node-local-dns
+        namespace: kube-system
+        definition:
+          spec:
+            template:
+              metadata:
+                annotations:
+                  kubectl.kubernetes.io/restartedAt: "{{ ansible_date_time.iso8601 }}"
+      when: kubernetes_node_local_dns_apply_result.changed
     - name: "Kubernetes: -- Remove node local dns manifest --"
       ansible.builtin.file:
         path: "{{ kubernetes_tmp_configs_dir }}/nodelocaldns.yml"

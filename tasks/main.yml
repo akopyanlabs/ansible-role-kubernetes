@@ -45,7 +45,7 @@
   tags:
     - kubernetes_patch_coredns
 
-- name: "Kubernetes: -- Install  node local dns --"
+- name: "Kubernetes: -- Install kubelet csr approver --"
   ansible.builtin.import_tasks:
     file: extensions/csr/kubelet-csr-approver.yml
   when: "'kubernetes_install_kubelet_csr_approver'  in ansible_run_tags"
@@ -89,7 +89,7 @@
   ansible.builtin.fetch:
     src: "/etc/kubernetes/admin.conf"
     dest: "{{ local_ansible_user }}/{{ kubernetes_cluster_name }}.yaml"
-    mode: "0777"
+    mode: "0600"
     flat: true
   run_once: true
   when: "'kubernetes_fetch_admin_conf'  in ansible_run_tags "
