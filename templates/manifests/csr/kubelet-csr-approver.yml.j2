@@ -82,14 +82,16 @@ spec:
       serviceAccountName: kubelet-csr-approver
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                      - kubelet-csr-approver
-              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - kubelet-csr-approver
+                topologyKey: kubernetes.io/hostname
 
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

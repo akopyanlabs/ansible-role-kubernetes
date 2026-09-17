@@ -176,8 +176,18 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-dir
-      nodeSelector:
-        node-role.kubernetes.io/{{ kubernetes_extensions_metrics_server_node_labels }}: "true"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/{{ kubernetes_extensions_metrics_server_node_labels }}
+                    operator: Exists
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
       priorityClassName: system-cluster-critical
       serviceAccountName: metrics-server
       volumes:
