@@ -12,10 +12,12 @@ jwt:
   - issuer:
       url: {{ kubernetes_kubeapi_auth_jwt_auth_issuer_url }}
       discoveryURL: {{ kubernetes_kubeapi_auth_jwt_auth_issuer_discovery_url }}
-{% for audience in kubernetes_kubeapi_auth_jwt_auth_audiences %}
+{% if kubernetes_kubeapi_auth_jwt_auth_audiences | length > 0 %}
       audiences:
+{% for audience in kubernetes_kubeapi_auth_jwt_auth_audiences %}
         - {{ audience }}
 {% endfor %}
+{% endif %}
       audienceMatchPolicy: MatchAny
       certificateAuthority: |
         {{ lookup('file', kubernetes_kubeapi_auth_jwt_auth_ca_file) | indent(8) }}

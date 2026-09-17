@@ -167,6 +167,84 @@ kubernetes_node_labels: []
 kubernetes_node_taints: []
 ```
 
+## Интеграция с Keycloak (OIDC)
+
+Роль поддерживает аутентификацию в Kubernetes API через JWT-issuer — например, realm Keycloak.
+
+### Что делает роль
+
+- рендерит `AuthenticationConfiguration` (`apiserver.config.k8s.io/v1beta1`) в `/etc/kubernetes/auth/config.yaml`
+- передаёт его в kube-apiserver через `--authentication-config` (подключается в шаблоне kubeadm-конфига при включённом audit-логе — `kubernetes_kubeapi_audit_enabled: true`)
+- маппит claims токена на username/groups Kubernetes
+
+### Переменные
+
+```yaml
+kubernetes_kubeapi_auth_jwt_auth_enabled: true
+
+# Realm Keycloak
+kubernetes_kubeapi_auth_jwt_auth_issuer_url: "https://keycloak.example.com/realms/k8s"
+kubernetes_kubeapi_auth_jwt_auth_issuer_discovery_url: "https://keycloak.example.com/realms/k8s/.well-known/openid-configuration"
+
+# Audience = Client ID в Keycloak
+kubernetes_kubeapi_auth_jwt_auth_audiences: ["kubernetes"]
+
+# CA для HTTPS Keycloak (путь на ansible-контроллере; обязателен, если свой CA)
+kubernetes_kubeapi_auth_jwt_auth_ca_file: "files/keycloak-ca.crt"
+
+# Claims
+kubernetes_kubeapi_auth_jwt_auth_username_claim: "email"
+kubernetes_kubeapi_auth_jwt_auth_groups_claim: "groups"
+kubernetes_kubeapi_auth_jwt_auth_username_prefix: ""
+kubernetes_kubeapi_auth_jwt_auth_groups_prefix: ""
+```
+
+### Настройка Keycloak
+
+1. В realm создайте client `kubernetes` (для kubectl — public client с Standard Flow).
+2. Для проброса групп в токен добавьте client scope / mapper типа **Group Membership** с token claim `groups`.
+3. Пользователь получит группы Keycloak в claim `groups` — они станут группами Kubernetes (`cluster-admin`, `platform-team`, ...).
+
+### Доступ группам
+
+Пример выдачи прав группе Keycloak:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: keycloak-cluster-admins
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: Group
+    name: cluster-admins # группа Keycloak
+    apiGroup: rbac.authorization.k8s.io
+```
+
+### kubectl
+
+Через плагин [kubelogin](https://github.com/int128/kubelogin) (`kubectl oidc-login`):
+
+```yaml
+# ~/.kube/config
+users:
+  - name: oidc
+    user:
+      exec:
+        apiVersion: client.authentication.k8s.io/v1beta1
+        command: kubectl
+        args:
+          - oidc-login
+          - get-token
+          - --oidc-issuer-url=https://keycloak.example.com/realms/k8s
+          - --oidc-client-id=kubernetes
+          - --oidc-extra-scope=email
+          - --oidc-extra-scope=groups
+```
+
 ## Пример переменных
 
 Пример минимального vars-файла:
