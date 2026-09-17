@@ -52,6 +52,23 @@
     reload: true
   when: kubernetes_node_port_range is defined
 
+- name: "Kubernetes Prepare: -- Disable firewalld --"
+  when: kubernetes_disable_firewalld | bool
+  block:
+    - name: "Kubernetes Prepare: -- Check if firewalld is active --"
+      ansible.builtin.command:
+        cmd: "systemctl is-active firewalld"
+      register: kubernetes_firewalld_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Kubernetes Prepare: -- Stop and disable firewalld --"
+      ansible.builtin.systemd:
+        name: firewalld
+        state: stopped
+        enabled: false
+      when: kubernetes_firewalld_status.stdout == "active"
+
 - name: "Kubernetes Prepare: -- Disable swap --"
   ansible.builtin.command: "swapoff -a"
   become: true

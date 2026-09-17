@@ -36,8 +36,8 @@ backend kube_api_backend
     balance leastconn
     option httpchk GET /healthz
     http-check expect status 200
-    default-server inter 5s downinter 5s rise 2 fall 2 maxconn 1000 maxqueue 256 weight 100
+    default-server inter 5s downinter 5s rise 2 fall 2 maxconn 1000 maxqueue 256
 {% for host in groups[kubernetes_master_group_name] %}
-    server {{ host }}  {{ hostvars[host].ansible_default_ipv4.address }}:{{ kubernetes_apiserver_port }} check check-ssl verify none
+    server {{ host }}  {{ hostvars[host].ansible_default_ipv4.address }}:{{ kubernetes_apiserver_port }} check check-ssl verify none weight {{ kubernetes_haproxy_weights[host] | default(100) }}
 {% endfor %}
 
