@@ -17,3 +17,7 @@ ansible_version_compatibility/log/
 .tmp
 *.tmp
 TODO
+
+# playground — локальный тестовый стенд, в git не попадает
+playground/
+.zcode/

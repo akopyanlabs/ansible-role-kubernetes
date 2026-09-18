@@ -28,7 +28,6 @@ kubernetes_packages:
   - kubectl={{ kubernetes_version }}*
   - containerd.io={{ kubernetes_containerd_package_version }}
   - python3-kubernetes
-  - python3-openshift
 
 kubernetes_config_dir: "/etc/kubernetes"
 kubernetes_manifests_dir: "{{ kubernetes_config_dir }}/manifests"
