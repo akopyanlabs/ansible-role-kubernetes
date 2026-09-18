@@ -15,8 +15,11 @@
 - **JWT auth-config** (`templates/kubeapi/auth-config.yml.j2`): заголовок списка `audiences:` вынесен из `{% for %}` — при двух и более audiences рендерился невалидный YAML.
 - **Docker apt-репозиторий**: дистрибутив больше не захардкожен (`bullseye`), используется `{{ ansible_distribution_release }}`.
 - **fetch admin.conf**: права `0777` → `0600`.
-- **`kubernetes_check_existing_nodes`**: сравнение с кластером теперь по master- и worker-группам.
 - Дублирующееся имя таски kubelet-csr-approver в `tasks/main.yml`.
+
+### Removed
+
+- **`kubernetes_check_existing_nodes`**: таска и `tasks/enviroment/check-existing-nodes.yml` — факты `kube_nodes_list`/`hosts_not_in_kube` нигде в роли не потреблялись (блок действий был закомментирован).
 
 ### Changed
 

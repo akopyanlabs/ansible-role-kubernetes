@@ -95,10 +95,3 @@
   when: "'kubernetes_fetch_admin_conf'  in ansible_run_tags "
   tags:
     - kubernetes_fetch_admin_conf
-
-- name: "Kubernetes: -- check --"
-  ansible.builtin.import_tasks:
-    file: enviroment/check-existing-nodes.yml
-  when: "'kubernetes_check_existing_nodes'  in ansible_run_tags"
-  tags:
-    - kubernetes_check_existing_nodes

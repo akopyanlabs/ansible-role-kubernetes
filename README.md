@@ -336,7 +336,6 @@ k8s_workers:
 - `kubernetes_add_node_label`: проставление labels нодам
 - `kubernetes_cis_settings`: применение CIS-настроек
 - `kubernetes_fetch_admin_conf`: скачать `admin.conf` на ansible controller
-- `kubernetes_check_existing_nodes`: показать ноды, которые отсутствуют в кластере
 - `kubernetes_install_cni`: установка Calico
 - `kubernetes_install_node_local_dns`: установка NodeLocal DNS
 - `kubernetes_patch_coredns`: патч CoreDNS
