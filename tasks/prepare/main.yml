@@ -23,34 +23,22 @@
     - overlay
 
 - name: "Kubernetes Prepare: -- Set sysctl parameters --"
-  become: true
-  ansible.posix.sysctl:
-    name: "{{ item.name }}"
-    value: "{{ item.value }}"
-    sysctl_set: true
-    state: present
-    reload: true
-  loop:
-    # https://github.com/istio/istio/issues/36821
-    - name: fs.inotify.max_user_watches
-      value: 1048576
-    - name: fs.inotify.max_user_instances
-      value: 1024
-    - name: net.bridge.bridge-nf-call-iptables
-      value: 1
-    - name: net.bridge.bridge-nf-call-ip6tables
-      value: 1
-    - name: net.ipv4.ip_forward
-      value: 1
+  block:
+    - name: "Kubernetes Prepare: -- Copy kubernetes sysctl config --"
+      ansible.builtin.template:
+        src: sysctl/99-kubernetes.conf.j2
+        dest: /etc/sysctl.d/99-kubernetes.conf
+        mode: "0644"
+      register: kubernetes_sysctl_config
 
-- name: "Kubernetes Prepare: -- Ensure nodePort range is reserved --"
-  ansible.posix.sysctl:
-    name: net.ipv4.ip_local_reserved_ports
-    value: "{{ kubernetes_node_port_range }}"
-    sysctl_set: true
-    state: present
-    reload: true
-  when: kubernetes_node_port_range is defined
+    - name: "Kubernetes Prepare: -- Apply sysctl parameters --"
+      # sysctl --system picks up the new file and applies it immediately;
+      # modules-load (see above) guarantees br_netfilter before bridge-nf-* keys
+      ansible.builtin.command:
+        cmd: sysctl --system
+      when: kubernetes_sysctl_config.changed
+      changed_when: false
+  become: true
 
 - name: "Kubernetes Prepare: -- Disable firewalld --"
   when: kubernetes_disable_firewalld | bool
