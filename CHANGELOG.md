@@ -4,6 +4,21 @@
 
 Формат ориентирован на Keep a Changelog.
 
+## [1.4.1] - 2026-09-20
+
+### Fixed
+
+- **Добавление нод с `--limit`**: списки `kubernetes_masters_joined` / `kubernetes_workers_joined` строились из `hostvars` всех хостов инвентаря — при `--limit` stat-таска выполняется только на хостах текущего play, и set_fact падал на undefined `kubernetes_*_kubelet_conf_stat`. Теперь итерируются только play hosts (stat для них гарантированно зарегистрирован), доступ к атрибуту защищён `default(false)` (регрессия 1.4.0).
+
+### Changed
+
+- Комментарии в коде роли переведены на английский.
+
+### Removed
+
+- `tests/` — каркасный localhost-плейбук без функциональности.
+- `python3-openshift` из дефолтного `kubernetes_packages` — ролью не используется (при необходимости добавьте в свой vars-файл).
+
 ## [1.4.0] - 2026-09-17
 
 ### Fixed
