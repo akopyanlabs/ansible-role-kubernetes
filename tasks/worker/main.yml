@@ -9,13 +9,17 @@
   become: true
 
 - name: "Kubernetes: -- Set list of joined worker nodes --"
+  # только хосты текущего play: stat гарантированно выполнен на каждом из них;
+  # hostvars остальных нод при --limit переменную не содержат
   ansible.builtin.set_fact:
     kubernetes_workers_joined: >-
-      {{ ansible_play_hosts
-         | intersect(groups[kubernetes_worker_group_name] | default([]))
-         | select('in', hostvars | dict2items
-                  | selectattr('value.kubernetes_worker_kubelet_conf_stat.stat.exists', 'equalto', true)
-                  | map(attribute='key') | list) }}
+      {%- set joined = [] -%}
+      {%- for h in ansible_play_hosts | intersect(groups[kubernetes_worker_group_name] | default([])) -%}
+      {%-   if hostvars[h].kubernetes_worker_kubelet_conf_stat.stat.exists | default(false) -%}
+      {%-     set _ = joined.append(h) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{- joined -}}
 
 - name: "Kubernetes: -- Set list of worker nodes pending join --"
   ansible.builtin.set_fact:

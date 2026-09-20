@@ -9,13 +9,17 @@
   become: true
 
 - name: "Kubernetes: -- Set list of joined master nodes --"
+  # только хосты текущего play: stat гарантированно выполнен на каждом из них;
+  # hostvars остальных мастеров при --limit переменную не содержат
   ansible.builtin.set_fact:
     kubernetes_masters_joined: >-
-      {{ ansible_play_hosts
-         | intersect(groups[kubernetes_master_group_name])
-         | select('in', hostvars | dict2items
-                  | selectattr('value.kubernetes_master_kubelet_conf_stat.stat.exists', 'equalto', true)
-                  | map(attribute='key') | list) }}
+      {%- set joined = [] -%}
+      {%- for h in ansible_play_hosts | intersect(groups[kubernetes_master_group_name]) -%}
+      {%-   if hostvars[h].kubernetes_master_kubelet_conf_stat.stat.exists | default(false) -%}
+      {%-     set _ = joined.append(h) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{- joined -}}
 
 - name: "Kubernetes: -- Set list of master nodes pending join --"
   ansible.builtin.set_fact:
