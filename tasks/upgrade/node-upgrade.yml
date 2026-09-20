@@ -1,0 +1,26 @@
+# Upgrade one already-registered node (secondary control-plane or worker):
+# packages -> kubeadm upgrade node -> kubelet restart.
+# Vars: kubernetes_upgrade_node — inventory hostname of the target node.
+
+- name: "Kubernetes Upgrade: -- Packages on {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.include_tasks:
+    file: upgrade/node-packages.yml
+
+- name: "Kubernetes Upgrade: -- Upgrade node {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.command:
+    cmd: kubeadm upgrade node
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+  changed_when: true
+  register: kubernetes_upgrade_node_result
+
+- name: "Kubernetes Upgrade: -- Show node upgrade result {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.debug:
+    var: kubernetes_upgrade_node_result
+
+- name: "Kubernetes Upgrade: -- Restart kubelet on {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.systemd:
+    name: kubelet
+    state: restarted
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true

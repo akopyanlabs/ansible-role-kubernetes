@@ -79,6 +79,12 @@
   tags:
     - kubernetes_add_node_label
 
+- name: "Kubernetes: -- Upgrade cluster --"
+  ansible.builtin.import_tasks: "upgrade/main.yml"
+  when: "'kubernetes_upgrade_cluster'  in ansible_run_tags "
+  tags:
+    - kubernetes_upgrade_cluster
+
 - name: "Kubernetes: -- apply CIS settings --"
   ansible.builtin.import_tasks: "cis-settings/main.yml"
   when: "'kubernetes_cis_settings'  in ansible_run_tags "

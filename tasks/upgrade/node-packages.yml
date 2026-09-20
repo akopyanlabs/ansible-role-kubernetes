@@ -1,0 +1,85 @@
+# Package layer for one node being upgraded.
+# Vars: kubernetes_upgrade_node — inventory hostname of the target node.
+
+- name: "Kubernetes Upgrade: -- Unhold packages on {{ kubernetes_upgrade_node }} (apt) --"
+  ansible.builtin.command:
+    cmd: apt-mark unhold kubeadm kubelet kubectl
+  when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'apt'
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: "Kubernetes Upgrade: -- Unhold packages on {{ kubernetes_upgrade_node }} (dnf) --"
+  ansible.builtin.command:
+    cmd: dnf versionlock delete 'kubeadm*' 'kubelet*' 'kubectl*'
+  when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'dnf'
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: "Kubernetes Upgrade: -- Install target packages on {{ kubernetes_upgrade_node }} (apt) --"
+  ansible.builtin.apt:
+    name: "{{ kubernetes_upgrade_packages }}"
+    state: present
+    update_cache: true
+  when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'apt'
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+  register: kubernetes_upgrade_install_result
+
+- name: "Kubernetes Upgrade: -- Install target packages on {{ kubernetes_upgrade_node }} (dnf) --"
+  ansible.builtin.dnf:
+    name: "{{ kubernetes_upgrade_packages }}"
+    state: present
+  when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'dnf'
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+  register: kubernetes_upgrade_install_result
+
+- name: "Kubernetes Upgrade: -- Hold packages on {{ kubernetes_upgrade_node }} (apt) --"
+  ansible.builtin.command:
+    cmd: apt-mark hold kubeadm kubelet kubectl
+  when:
+    - hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'apt'
+    - kubernetes_upgrade_install_result.changed
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+  changed_when: false
+
+- name: "Kubernetes Upgrade: -- Hold packages on {{ kubernetes_upgrade_node }} (dnf) --"
+  ansible.builtin.command:
+    cmd: dnf versionlock add kubeadm kubelet kubectl
+  when:
+    - hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'dnf'
+    - kubernetes_upgrade_install_result.changed
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+  changed_when: false
+
+- name: "Kubernetes Upgrade: -- Override sandbox image on {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.set_fact:
+    kubernetes_containerd_sandbox_image: "{{ kubernetes_upgrade_sandbox_image }}"
+  when: kubernetes_upgrade_sandbox_image | length > 0
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+
+- name: "Kubernetes Upgrade: -- Update containerd config on {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.template:
+    src: containerd/config.toml.j2
+    dest: /etc/containerd/config.toml
+    mode: "0644"
+  when: kubernetes_upgrade_sandbox_image | length > 0
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+  register: kubernetes_upgrade_containerd_config
+
+- name: "Kubernetes Upgrade: -- Restart containerd on {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted
+  when:
+    - kubernetes_upgrade_sandbox_image | length > 0
+    - kubernetes_upgrade_containerd_config.changed
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true

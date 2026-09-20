@@ -1,0 +1,43 @@
+# Upgrade one worker node: cordon -> drain -> upgrade -> uncordon -> wait Ready.
+# Vars: kubernetes_upgrade_node — inventory hostname of the target node.
+
+- name: "Kubernetes Upgrade: -- Cordon {{ kubernetes_upgrade_node }} --"
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Node
+    name: "{{ kubernetes_upgrade_node | lower }}"
+    state: present
+    definition:
+      spec:
+        unschedulable: true
+  delegate_to: "{{ administrative_master_node }}"
+  when: kubernetes_upgrade_drain | bool
+
+- name: "Kubernetes Upgrade: -- Drain {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.command:
+    cmd: "kubectl drain {{ kubernetes_upgrade_node | lower }} --ignore-daemonsets --delete-emptydir-data --timeout=600s"
+  delegate_to: "{{ administrative_master_node }}"
+  when: kubernetes_upgrade_drain | bool
+  changed_when: false
+
+- name: "Kubernetes Upgrade: -- Upgrade {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.include_tasks:
+    file: upgrade/node-upgrade.yml
+
+- name: "Kubernetes Upgrade: -- Uncordon {{ kubernetes_upgrade_node }} --"
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Node
+    name: "{{ kubernetes_upgrade_node | lower }}"
+    state: present
+    definition:
+      spec:
+        unschedulable: false
+  delegate_to: "{{ administrative_master_node }}"
+  when: kubernetes_upgrade_drain | bool
+
+- name: "Kubernetes Upgrade: -- Wait for {{ kubernetes_upgrade_node }} Ready --"
+  ansible.builtin.command:
+    cmd: "kubectl wait --for=condition=Ready node/{{ kubernetes_upgrade_node | lower }} --timeout=600s"
+  delegate_to: "{{ administrative_master_node }}"
+  changed_when: false

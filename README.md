@@ -322,6 +322,35 @@ k8s_workers:
     - role: kubernetes
 ```
 
+## Upgrade кластера
+
+Тег `kubernetes_upgrade_cluster` обновляет кластер по канону kubeadm:
+admin-мастер (`kubeadm upgrade apply`) → остальные мастера по одному →
+воркеры по одному (cordon → drain → upgrade → uncordon → ожидание Ready).
+
+```yaml
+kubernetes_upgrade_version: "1.34.3"   # точная версия X.Y.Z, обязательна
+kubernetes_upgrade_etcd_backup: true   # снапшот etcd до апгрейда
+kubernetes_upgrade_drain: true         # drain/uncordon воркеров
+# опционально: выровнять pause-образ под новый minor
+kubernetes_upgrade_sandbox_image: "registry.k8s.io/pause:3.11"
+```
+
+```bash
+ansible-playbook -i inventory.yml play-kubernetes.yml --tags kubernetes_upgrade_cluster -e kubernetes_upgrade_version=1.34.3
+```
+
+Ограничения и поведение:
+
+- шаг ≤ 1 minor за прогон (patch-апгрейды разрешены); 1.31 → 1.34 делается
+  тремя последовательными прогонами — иначе роль упадёт на проверке;
+- перед прогоном убедитесь, что репозитории пакетов содержат целевую версию
+  (`kubernetes_dnf_repo` / apt-репо), и что `kubernetes_version` в vars
+  обновлена — иначе следующий join поставит старую версию;
+- снапшот etcd кладётся в `/var/lib/etcd/snapshot-pre-<version>.db` на admin-ноде;
+- пакеты на время апгрейда раслочиваются и лочатся обратно (apt-mark / dnf versionlock);
+- dnf-ветка (RedOS) не тестировалась на живом кластере.
+
 ## Теги
 
 Роль завязана на запуск через теги. Это важно: без нужных тегов основная часть задач не выполнится.
@@ -336,7 +365,7 @@ k8s_workers:
 - `kubernetes_add_node_label`: проставление labels нодам
 - `kubernetes_cis_settings`: применение CIS-настроек
 - `kubernetes_fetch_admin_conf`: скачать `admin.conf` на ansible controller
-- `kubernetes_install_cni`: установка Calico
+- `kubernetes_upgrade_cluster`: upgrade кластера (см. раздел выше)- `kubernetes_install_cni`: установка Calico
 - `kubernetes_install_node_local_dns`: установка NodeLocal DNS
 - `kubernetes_patch_coredns`: патч CoreDNS
 - `kubernetes_install_kubelet_csr_approver`: установка kubelet CSR approver
