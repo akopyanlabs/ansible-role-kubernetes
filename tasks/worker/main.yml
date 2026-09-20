@@ -9,8 +9,8 @@
   become: true
 
 - name: "Kubernetes: -- Set list of joined worker nodes --"
-  # только хосты текущего play: stat гарантированно выполнен на каждом из них;
-  # hostvars остальных нод при --limit переменную не содержат
+  # play hosts only: stat is guaranteed to be registered on each of them;
+  # under --limit other nodes' hostvars lack this variable
   ansible.builtin.set_fact:
     kubernetes_workers_joined: >-
       {%- set joined = [] -%}

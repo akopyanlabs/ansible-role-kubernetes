@@ -18,7 +18,7 @@
         src: "/tmp/coredns.yml"
         state: present
         namespace: "kube-system"
-    # BUG: сделать добавление аннотации в сервис projectcalico.org/natExcludeService: true при отключенном kube-proxy
+    # BUG: add projectcalico.org/natExcludeService: true annotation to the service when kube-proxy is disabled
     - name: Patch CoreDNS Deployment
       kubernetes.core.k8s:
         state: present
@@ -32,7 +32,7 @@
             template:
               metadata:
                 annotations:
-                  # Изменение Corefile меняет checksum и провоцирует rolling restart CoreDNS
+                  # Corefile change alters the checksum and triggers a CoreDNS rolling restart
                   checksum/config: "{{ lookup('file', role_path + '/files/coredns/coredns.yml') | checksum }}"
               spec:
                 affinity:

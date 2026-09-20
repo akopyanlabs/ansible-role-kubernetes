@@ -11,7 +11,7 @@ kubernetes_crictl_url: "" # https://github.com/kubernetes-sigs/cri-tools/release
 kubernetes_haproxy_packages:
   - haproxy
   - socat
-  # нужен там где есть selinux
+  # needed on hosts with selinux
   # - policycoreutils-python-utils
 kubernetes_haproxy_oom_score_adjust: -900
 kubernetes_haproxy_restart_sec: 5s
@@ -27,6 +27,7 @@ kubernetes_packages:
   - kubelet={{ kubernetes_version }}*
   - kubectl={{ kubernetes_version }}*
   - containerd.io={{ kubernetes_containerd_package_version }}
+  - cri-tools
   - python3-kubernetes
 
 kubernetes_config_dir: "/etc/kubernetes"
@@ -35,7 +36,7 @@ kubernetes_tmp_configs_dir: /tmp
 kubernetes_cluster_name: "kubernetes"
 kubernetes_pod_cidr: "10.137.0.0/18"
 kubernetes_service_cidr: "10.137.64.0/18"
-kubernetes_version: "1.33"
+kubernetes_version: "1.36"
 kubernetes_node_port_range: 30000-32767
 kubernetes_image_repository: "registry.k8s.io"
 kubernetes_loadbalancer_apiserver_ip: "127.0.0.1"

@@ -5,8 +5,8 @@
       delegate_to: "{{ item }}"
       delegate_facts: true
       loop: "{{ groups[kubernetes_master_group_name] }}"
-      # Факты нужны для haproxy-шаблона; при --limit добираем недостающие,
-      # на полном прогоне факты уже собраны и таска пропускается
+      # Facts feed the haproxy template; under --limit we fetch only the
+      # missing ones, on a full run facts are already gathered and this skips
       when: hostvars[item].ansible_default_ipv4 is not defined
   tags:
     - always
@@ -22,7 +22,7 @@
 
 - name: "Kubernetes Components: -- Configure HAProxy --"
   block:
-    # TODO: Добавить rescue для отката в случае ошибки
+    # TODO: add rescue to roll back on failure
     - name: "Kubernetes Components: -- Copy haproxy global configuration file --"
       ansible.builtin.template:
         src: haproxy/kubernetes-api.cfg.j2

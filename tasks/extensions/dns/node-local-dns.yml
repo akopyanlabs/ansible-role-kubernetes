@@ -33,7 +33,7 @@
           force_conflicts: true
       register: kubernetes_node_local_dns_apply_result
     - name: "Kubernetes: -- Restart node local dns if config changed --"
-      # ConfigMap и DaemonSet в одном манифесте: поды не перечитывают Corefile сами
+      # ConfigMap and DaemonSet live in one manifest: pods do not reload the Corefile themselves
       kubernetes.core.k8s:
         state: patched
         kind: DaemonSet
