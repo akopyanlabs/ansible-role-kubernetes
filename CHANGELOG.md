@@ -14,7 +14,8 @@
   - последовательный upgrade: admin-мастер (`kubeadm upgrade apply`) → остальные мастера (`kubeadm upgrade node`) → воркеры (cordon/drain → upgrade → uncordon → ожидание Ready);
   - unhold → установка `kubernetes_upgrade_packages` → hold для apt и dnf;
   - опциональное обновление pause-образа в config.toml (`kubernetes_upgrade_sandbox_image`);
-  - режим подтверждения `kubernetes_upgrade_confirm: true` — yes/no перед каждым хостом (`no` пропускает ноду).
+  - режим подтверждения `kubernetes_upgrade_confirm: true` — yes/no перед каждым хостом (`no` пропускает ноду);
+  - apt-репозиторий переключается на целевой minor автоматически (pkgs.k8s.io версионирован по minor); для dnf — опциональная `kubernetes_upgrade_dnf_repo`.
 - **sysctl**: параметры вынесены в управляемый файл `/etc/sysctl.d/99-kubernetes.conf` (включая резервирование NodePort-диапазона), применение через `sysctl --system`.
 
 ## [1.4.1] - 2026-09-20

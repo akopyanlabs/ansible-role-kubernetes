@@ -1,6 +1,31 @@
 # Package layer for one node being upgraded.
 # Vars: kubernetes_upgrade_node — inventory hostname of the target node.
 
+- name: "Kubernetes Upgrade: -- Point apt repository at target minor on {{ kubernetes_upgrade_node }} --"
+  # pkgs.k8s.io is versioned per minor; the signing key is shared across
+  # minors, so only the sources line changes
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/kubernetes.list
+    content: |
+      deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_upgrade_version.split('.')[:2] | join('.') }}/deb/ /
+    mode: "0644"
+  when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'apt'
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+
+- name: "Kubernetes Upgrade: -- Point dnf repository at target version on {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.yum_repository:
+    name: kubernetes.io
+    description: Kubernetes packages (upgrade target)
+    baseurl: "{{ kubernetes_upgrade_dnf_repo }}"
+    gpgcheck: false
+    enabled: true
+  when:
+    - hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'dnf'
+    - kubernetes_upgrade_dnf_repo | length > 0
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true
+
 - name: "Kubernetes Upgrade: -- Unhold packages on {{ kubernetes_upgrade_node }} (apt) --"
   ansible.builtin.command:
     cmd: apt-mark unhold kubeadm kubelet kubectl

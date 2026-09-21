@@ -229,6 +229,9 @@ kubernetes_upgrade_confirm: false # ask yes/no before each node (no skips the no
 kubernetes_upgrade_etcd_backup: true
 kubernetes_upgrade_etcd_image: "{{ kubernetes_image_repository }}/etcd:3.5.16-0"
 kubernetes_upgrade_drain: true # drain/uncordon workers during upgrade
+# Repository with the target packages (dnf only): pkgs.k8s.io-like per-version
+# repos need it; a multi-version mirror leaves it empty
+kubernetes_upgrade_dnf_repo: ""
 # Optional pause/sandbox image aligned with the target minor,
 # e.g. "registry.k8s.io/pause:3.11" — updates containerd config.toml
 kubernetes_upgrade_sandbox_image: ""
