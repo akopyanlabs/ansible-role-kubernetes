@@ -120,28 +120,51 @@
   become: true
   run_once: true
   block:
-    - name: "Kubernetes Upgrade: -- Packages on first control-plane node --"
-      ansible.builtin.include_tasks:
-        file: upgrade/node-packages.yml
-      vars:
-        kubernetes_upgrade_node: "{{ administrative_master_node }}"
+    - name: "Kubernetes Upgrade: -- Confirm upgrade of the first control-plane node --"
+      ansible.builtin.pause:
+        prompt: "Upgrade {{ administrative_master_node }} (FIRST control-plane node) to v{{ kubernetes_upgrade_version }}? (yes/no, no skips it — note: secondary nodes will then fail): "
+      register: kubernetes_upgrade_confirm_result
+      when: kubernetes_upgrade_confirm | bool
 
-    - name: "Kubernetes Upgrade: -- Apply upgrade on first control-plane node --"
-      ansible.builtin.command:
-        cmd: "kubeadm upgrade apply v{{ kubernetes_upgrade_version }}"
-      delegate_to: "{{ administrative_master_node }}"
-      changed_when: true
-      register: kubernetes_upgrade_apply_result
+    - name: "Kubernetes Upgrade: -- Abort on invalid confirmation --"
+      ansible.builtin.fail:
+        msg: "Please answer exactly 'yes' or 'no'"
+      when:
+        - kubernetes_upgrade_confirm | bool
+        - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) not in ['yes', 'no']
 
-    - name: "Kubernetes Upgrade: -- Show upgrade apply result --"
+    - name: "Kubernetes Upgrade: -- First control-plane flow --"
+      when: (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) != 'no'
+      block:
+        - name: "Kubernetes Upgrade: -- Packages on first control-plane node --"
+          ansible.builtin.include_tasks:
+            file: upgrade/node-packages.yml
+          vars:
+            kubernetes_upgrade_node: "{{ administrative_master_node }}"
+
+        - name: "Kubernetes Upgrade: -- Apply upgrade on first control-plane node --"
+          ansible.builtin.command:
+            cmd: "kubeadm upgrade apply v{{ kubernetes_upgrade_version }}"
+          delegate_to: "{{ administrative_master_node }}"
+          changed_when: true
+          register: kubernetes_upgrade_apply_result
+
+        - name: "Kubernetes Upgrade: -- Show upgrade apply result --"
+          ansible.builtin.debug:
+            var: kubernetes_upgrade_apply_result
+
+        - name: "Kubernetes Upgrade: -- Restart kubelet on first control-plane node --"
+          ansible.builtin.systemd:
+            name: kubelet
+            state: restarted
+          delegate_to: "{{ administrative_master_node }}"
+
+    - name: "Kubernetes Upgrade: -- Skipped first control-plane node --"
       ansible.builtin.debug:
-        var: kubernetes_upgrade_apply_result
-
-    - name: "Kubernetes Upgrade: -- Restart kubelet on first control-plane node --"
-      ansible.builtin.systemd:
-        name: kubelet
-        state: restarted
-      delegate_to: "{{ administrative_master_node }}"
+        msg: "Skipped {{ administrative_master_node }} by operator decision — the cluster upgrade is incomplete"
+      when:
+        - kubernetes_upgrade_confirm | bool
+        - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) == 'no'
 
 - name: "Kubernetes Upgrade: -- Upgrade secondary control-plane nodes --"
   ansible.builtin.include_tasks:

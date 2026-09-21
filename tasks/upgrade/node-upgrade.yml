@@ -1,26 +1,55 @@
 # Upgrade one already-registered node (secondary control-plane or worker):
-# packages -> kubeadm upgrade node -> kubelet restart.
-# Vars: kubernetes_upgrade_node — inventory hostname of the target node.
+# optional confirmation -> packages -> kubeadm upgrade node -> kubelet restart.
+# Vars:
+#   kubernetes_upgrade_node        — target node inventory hostname
+#   kubernetes_upgrade_skip_confirm — set by node-worker.yml to avoid double prompt
 
-- name: "Kubernetes Upgrade: -- Packages on {{ kubernetes_upgrade_node }} --"
-  ansible.builtin.include_tasks:
-    file: upgrade/node-packages.yml
+- name: "Kubernetes Upgrade: -- Confirm upgrade of {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.pause:
+    prompt: "Upgrade {{ kubernetes_upgrade_node }} to v{{ kubernetes_upgrade_version }}? (yes/no, no skips this node): "
+  register: kubernetes_upgrade_confirm_result
+  when:
+    - kubernetes_upgrade_confirm | bool
+    - not (kubernetes_upgrade_skip_confirm | default(false) | bool)
 
-- name: "Kubernetes Upgrade: -- Upgrade node {{ kubernetes_upgrade_node }} --"
-  ansible.builtin.command:
-    cmd: kubeadm upgrade node
-  delegate_to: "{{ kubernetes_upgrade_node }}"
-  become: true
-  changed_when: true
-  register: kubernetes_upgrade_node_result
+- name: "Kubernetes Upgrade: -- Abort on invalid confirmation --"
+  ansible.builtin.fail:
+    msg: "Please answer exactly 'yes' or 'no'"
+  when:
+    - kubernetes_upgrade_confirm | bool
+    - not (kubernetes_upgrade_skip_confirm | default(false) | bool)
+    - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) not in ['yes', 'no']
 
-- name: "Kubernetes Upgrade: -- Show node upgrade result {{ kubernetes_upgrade_node }} --"
+- name: "Kubernetes Upgrade: -- Upgrade {{ kubernetes_upgrade_node }} --"
+  when: (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) != 'no'
+  block:
+    - name: "Kubernetes Upgrade: -- Packages on {{ kubernetes_upgrade_node }} --"
+      ansible.builtin.include_tasks:
+        file: upgrade/node-packages.yml
+
+    - name: "Kubernetes Upgrade: -- Run kubeadm upgrade node on {{ kubernetes_upgrade_node }} --"
+      ansible.builtin.command:
+        cmd: kubeadm upgrade node
+      delegate_to: "{{ kubernetes_upgrade_node }}"
+      become: true
+      changed_when: true
+      register: kubernetes_upgrade_node_result
+
+    - name: "Kubernetes Upgrade: -- Show node upgrade result {{ kubernetes_upgrade_node }} --"
+      ansible.builtin.debug:
+        var: kubernetes_upgrade_node_result
+
+    - name: "Kubernetes Upgrade: -- Restart kubelet on {{ kubernetes_upgrade_node }} --"
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+      delegate_to: "{{ kubernetes_upgrade_node }}"
+      become: true
+
+- name: "Kubernetes Upgrade: -- Skipped {{ kubernetes_upgrade_node }} --"
   ansible.builtin.debug:
-    var: kubernetes_upgrade_node_result
-
-- name: "Kubernetes Upgrade: -- Restart kubelet on {{ kubernetes_upgrade_node }} --"
-  ansible.builtin.systemd:
-    name: kubelet
-    state: restarted
-  delegate_to: "{{ kubernetes_upgrade_node }}"
-  become: true
+    msg: "Skipped {{ kubernetes_upgrade_node }} by operator decision"
+  when:
+    - kubernetes_upgrade_confirm | bool
+    - not (kubernetes_upgrade_skip_confirm | default(false) | bool)
+    - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) == 'no'

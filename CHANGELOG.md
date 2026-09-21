@@ -13,7 +13,8 @@
   - опциональный снапшот etcd перед апгрейдом (под с etcdctl на admin-ноде, образ `kubernetes_upgrade_etcd_image`);
   - последовательный upgrade: admin-мастер (`kubeadm upgrade apply`) → остальные мастера (`kubeadm upgrade node`) → воркеры (cordon/drain → upgrade → uncordon → ожидание Ready);
   - unhold → установка `kubernetes_upgrade_packages` → hold для apt и dnf;
-  - опциональное обновление pause-образа в config.toml (`kubernetes_upgrade_sandbox_image`).
+  - опциональное обновление pause-образа в config.toml (`kubernetes_upgrade_sandbox_image`);
+  - режим подтверждения `kubernetes_upgrade_confirm: true` — yes/no перед каждым хостом (`no` пропускает ноду).
 - **sysctl**: параметры вынесены в управляемый файл `/etc/sysctl.d/99-kubernetes.conf` (включая резервирование NodePort-диапазона), применение через `sysctl --system`.
 
 ## [1.4.1] - 2026-09-20

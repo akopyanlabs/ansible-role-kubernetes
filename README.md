@@ -330,6 +330,7 @@ admin-мастер (`kubeadm upgrade apply`) → остальные мастер
 
 ```yaml
 kubernetes_upgrade_version: "1.34.3"   # точная версия X.Y.Z, обязательна
+kubernetes_upgrade_confirm: false      # yes/no перед каждым хостом (no = пропустить)
 kubernetes_upgrade_etcd_backup: true   # снапшот etcd до апгрейда
 kubernetes_upgrade_drain: true         # drain/uncordon воркеров
 # опционально: выровнять pause-образ под новый minor

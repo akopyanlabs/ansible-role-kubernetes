@@ -1,43 +1,70 @@
-# Upgrade one worker node: cordon -> drain -> upgrade -> uncordon -> wait Ready.
-# Vars: kubernetes_upgrade_node — inventory hostname of the target node.
+# Upgrade one worker node: confirmation happens BEFORE any disruptive action,
+# then cordon -> drain -> upgrade (packages + kubeadm upgrade node + kubelet)
+# -> uncordon -> wait Ready.
+# Vars: kubernetes_upgrade_node — target node inventory hostname.
 
-- name: "Kubernetes Upgrade: -- Cordon {{ kubernetes_upgrade_node }} --"
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Node
-    name: "{{ kubernetes_upgrade_node | lower }}"
-    state: present
-    definition:
-      spec:
-        unschedulable: true
-  delegate_to: "{{ administrative_master_node }}"
-  when: kubernetes_upgrade_drain | bool
+- name: "Kubernetes Upgrade: -- Confirm upgrade of {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.pause:
+    prompt: "Upgrade worker {{ kubernetes_upgrade_node }} to v{{ kubernetes_upgrade_version }}? (yes/no, no skips this node): "
+  register: kubernetes_upgrade_confirm_result
+  when: kubernetes_upgrade_confirm | bool
 
-- name: "Kubernetes Upgrade: -- Drain {{ kubernetes_upgrade_node }} --"
-  ansible.builtin.command:
-    cmd: "kubectl drain {{ kubernetes_upgrade_node | lower }} --ignore-daemonsets --delete-emptydir-data --timeout=600s"
-  delegate_to: "{{ administrative_master_node }}"
-  when: kubernetes_upgrade_drain | bool
-  changed_when: false
+- name: "Kubernetes Upgrade: -- Abort on invalid confirmation --"
+  ansible.builtin.fail:
+    msg: "Please answer exactly 'yes' or 'no'"
+  when:
+    - kubernetes_upgrade_confirm | bool
+    - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) not in ['yes', 'no']
 
-- name: "Kubernetes Upgrade: -- Upgrade {{ kubernetes_upgrade_node }} --"
-  ansible.builtin.include_tasks:
-    file: upgrade/node-upgrade.yml
+- name: "Kubernetes Upgrade: -- Upgrade {{ kubernetes_upgrade_node }} (worker flow) --"
+  when: (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) != 'no'
+  block:
+    - name: "Kubernetes Upgrade: -- Cordon {{ kubernetes_upgrade_node }} --"
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Node
+        name: "{{ kubernetes_upgrade_node | lower }}"
+        state: present
+        definition:
+          spec:
+            unschedulable: true
+      delegate_to: "{{ administrative_master_node }}"
+      when: kubernetes_upgrade_drain | bool
 
-- name: "Kubernetes Upgrade: -- Uncordon {{ kubernetes_upgrade_node }} --"
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Node
-    name: "{{ kubernetes_upgrade_node | lower }}"
-    state: present
-    definition:
-      spec:
-        unschedulable: false
-  delegate_to: "{{ administrative_master_node }}"
-  when: kubernetes_upgrade_drain | bool
+    - name: "Kubernetes Upgrade: -- Drain {{ kubernetes_upgrade_node }} --"
+      ansible.builtin.command:
+        cmd: "kubectl drain {{ kubernetes_upgrade_node | lower }} --ignore-daemonsets --delete-emptydir-data --timeout=600s"
+      delegate_to: "{{ administrative_master_node }}"
+      when: kubernetes_upgrade_drain | bool
+      changed_when: false
 
-- name: "Kubernetes Upgrade: -- Wait for {{ kubernetes_upgrade_node }} Ready --"
-  ansible.builtin.command:
-    cmd: "kubectl wait --for=condition=Ready node/{{ kubernetes_upgrade_node | lower }} --timeout=600s"
-  delegate_to: "{{ administrative_master_node }}"
-  changed_when: false
+    - name: "Kubernetes Upgrade: -- Node upgrade {{ kubernetes_upgrade_node }} --"
+      ansible.builtin.include_tasks:
+        file: upgrade/node-upgrade.yml
+      vars:
+        kubernetes_upgrade_skip_confirm: true
+
+    - name: "Kubernetes Upgrade: -- Uncordon {{ kubernetes_upgrade_node }} --"
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Node
+        name: "{{ kubernetes_upgrade_node | lower }}"
+        state: present
+        definition:
+          spec:
+            unschedulable: false
+      delegate_to: "{{ administrative_master_node }}"
+      when: kubernetes_upgrade_drain | bool
+
+    - name: "Kubernetes Upgrade: -- Wait for {{ kubernetes_upgrade_node }} Ready --"
+      ansible.builtin.command:
+        cmd: "kubectl wait --for=condition=Ready node/{{ kubernetes_upgrade_node | lower }} --timeout=600s"
+      delegate_to: "{{ administrative_master_node }}"
+      changed_when: false
+
+- name: "Kubernetes Upgrade: -- Skipped {{ kubernetes_upgrade_node }} --"
+  ansible.builtin.debug:
+    msg: "Skipped {{ kubernetes_upgrade_node }} by operator decision"
+  when:
+    - kubernetes_upgrade_confirm | bool
+    - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) == 'no'
