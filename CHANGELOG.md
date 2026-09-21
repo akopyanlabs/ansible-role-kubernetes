@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Список пакетов**: `kubernetes_packages` собирается из `kubernetes_versioned_packages` + `kubernetes_static_packages`; в vars достаточно переопределить версионную часть, статические (cri-tools, python3-kubernetes) подтягиваются автоматически. Прямой override `kubernetes_packages` по-прежнему работает.
+- unhold/hold в upgrade-флоу и `apt-mark hold` в components используют имена, вычисленные из specs пакетов, вместо хардкода kubeadm/kubelet/kubectl.
+
 ### Added
 
 - **Upgrade кластера** (тег `kubernetes_upgrade_cluster`, `tasks/upgrade/`):

@@ -83,6 +83,25 @@ kubernetes_service_cidr: "10.137.64.0/18"
 kubernetes_image_repository: "registry.k8s.io"
 ```
 
+Список пакетов собирается из двух переменных:
+
+```yaml
+kubernetes_versioned_packages:   # переопределяйте только её
+  - kubeadm={{ kubernetes_version }}*
+  - kubelet={{ kubernetes_version }}*
+  - kubectl={{ kubernetes_version }}*
+  - containerd.io={{ kubernetes_containerd_package_version }}
+kubernetes_static_packages:      # добавляются автоматически
+  - cri-tools
+  - python3-kubernetes
+kubernetes_packages: "{{ kubernetes_versioned_packages + kubernetes_static_packages }}"
+```
+
+В vars достаточно переопределить `kubernetes_versioned_packages` (например,
+dnf-спеками с полными версиями) — статические пакеты подтянутся сами.
+Прямой override `kubernetes_packages` целиком по-прежнему работает и
+перекрывает всё.
+
 ### Control Plane Endpoint
 
 По умолчанию роль использует локальный `haproxy`:

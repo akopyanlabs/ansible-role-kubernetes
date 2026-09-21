@@ -1,6 +1,12 @@
 # Package layer for one node being upgraded.
 # Vars: kubernetes_upgrade_node — inventory hostname of the target node.
 
+- name: "Kubernetes Upgrade: -- Derive package names for lock operations --"
+  # apt spec "kubeadm=1.34.3*" and dnf spec "kubeadm-0:1.34.3-1.x86_64"
+  # both reduce to the bare name; upgrade packages contain no dashes
+  ansible.builtin.set_fact:
+    kubernetes_upgrade_lock_names: "{{ kubernetes_upgrade_packages | map('regex_replace', '[-=<>~].*$', '') | list }}"
+
 - name: "Kubernetes Upgrade: -- Point apt repository at target minor on {{ kubernetes_upgrade_node }} --"
   # pkgs.k8s.io is versioned per minor; the signing key is shared across
   # minors, so only the sources line changes
@@ -28,7 +34,7 @@
 
 - name: "Kubernetes Upgrade: -- Unhold packages on {{ kubernetes_upgrade_node }} (apt) --"
   ansible.builtin.command:
-    cmd: apt-mark unhold kubeadm kubelet kubectl
+    cmd: "apt-mark unhold {{ kubernetes_upgrade_lock_names | join(' ') }}"
   when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'apt'
   delegate_to: "{{ kubernetes_upgrade_node }}"
   become: true
@@ -37,7 +43,7 @@
 
 - name: "Kubernetes Upgrade: -- Unhold packages on {{ kubernetes_upgrade_node }} (dnf) --"
   ansible.builtin.command:
-    cmd: dnf versionlock delete 'kubeadm*' 'kubelet*' 'kubectl*'
+    cmd: "dnf versionlock delete {{ kubernetes_upgrade_lock_names | map('regex_replace', '$', '*') | join(' ') }}"
   when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'dnf'
   delegate_to: "{{ kubernetes_upgrade_node }}"
   become: true
@@ -69,7 +75,7 @@
 
 - name: "Kubernetes Upgrade: -- Hold packages on {{ kubernetes_upgrade_node }} (apt) --"
   ansible.builtin.command:
-    cmd: apt-mark hold kubeadm kubelet kubectl
+    cmd: "apt-mark hold {{ kubernetes_upgrade_lock_names | join(' ') }}"
   when:
     - hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'apt'
     - kubernetes_upgrade_install_apt.changed | default(false)
@@ -79,7 +85,7 @@
 
 - name: "Kubernetes Upgrade: -- Hold packages on {{ kubernetes_upgrade_node }} (dnf) --"
   ansible.builtin.command:
-    cmd: dnf versionlock add kubeadm kubelet kubectl
+    cmd: "dnf versionlock add {{ kubernetes_upgrade_lock_names | join(' ') }}"
   when:
     - hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'dnf'
     - kubernetes_upgrade_install_dnf.changed | default(false)

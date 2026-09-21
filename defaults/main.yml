@@ -22,13 +22,20 @@ kubernetes_disable_firewalld: true
 kubernetes_dnf_repo: "" # "https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[:2] | join('.') }}/rpm/"
 kubernetes_dnf_repo_username: ""
 kubernetes_dnf_repo_password: ""
-kubernetes_packages:
+# Versioned packages: override this list only (e.g. dnf-style specs) —
+# static packages below are appended automatically
+kubernetes_versioned_packages:
   - kubeadm={{ kubernetes_version }}*
   - kubelet={{ kubernetes_version }}*
   - kubectl={{ kubernetes_version }}*
   - containerd.io={{ kubernetes_containerd_package_version }}
+# Static packages: rarely changed, survive versioned-list overrides
+kubernetes_static_packages:
   - cri-tools
   - python3-kubernetes
+# Full list used by install tasks; a direct kubernetes_packages override
+# in vars still wins over everything
+kubernetes_packages: "{{ kubernetes_versioned_packages + kubernetes_static_packages }}"
 
 kubernetes_config_dir: "/etc/kubernetes"
 kubernetes_manifests_dir: "{{ kubernetes_config_dir }}/manifests"

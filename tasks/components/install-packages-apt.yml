@@ -71,7 +71,7 @@
   loop: "{{ kubernetes_haproxy_packages }}"
 
 - name: "Kubernetes Components: -- Add version locks for Kubernetes packages --"
-  ansible.builtin.command: "apt-mark hold  {{ item }}"
+  ansible.builtin.command: "apt-mark hold {{ item.split('=')[0] }}"
   become: true
   loop: "{{ kubernetes_packages }}"
   when: kubernetes_packages_install_result.changed
