@@ -52,7 +52,7 @@
   when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'apt'
   delegate_to: "{{ kubernetes_upgrade_node }}"
   become: true
-  register: kubernetes_upgrade_install_result
+  register: kubernetes_upgrade_install_apt
 
 - name: "Kubernetes Upgrade: -- Install target packages on {{ kubernetes_upgrade_node }} (dnf) --"
   ansible.builtin.dnf:
@@ -61,14 +61,18 @@
   when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'dnf'
   delegate_to: "{{ kubernetes_upgrade_node }}"
   become: true
-  register: kubernetes_upgrade_install_result
+  register: kubernetes_upgrade_install_dnf
+
+# separate register names per branch: a skipped task still writes its
+# register ({"skipped": true, "changed": false}) and a shared name let
+# the skipped dnf branch clobber the apt result, so hold never ran
 
 - name: "Kubernetes Upgrade: -- Hold packages on {{ kubernetes_upgrade_node }} (apt) --"
   ansible.builtin.command:
     cmd: apt-mark hold kubeadm kubelet kubectl
   when:
     - hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'apt'
-    - kubernetes_upgrade_install_result.changed
+    - kubernetes_upgrade_install_apt.changed | default(false)
   delegate_to: "{{ kubernetes_upgrade_node }}"
   become: true
   changed_when: false
@@ -78,7 +82,7 @@
     cmd: dnf versionlock add kubeadm kubelet kubectl
   when:
     - hostvars[kubernetes_upgrade_node].ansible_pkg_mgr == 'dnf'
-    - kubernetes_upgrade_install_result.changed
+    - kubernetes_upgrade_install_dnf.changed | default(false)
   delegate_to: "{{ kubernetes_upgrade_node }}"
   become: true
   changed_when: false
