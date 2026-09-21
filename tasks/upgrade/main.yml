@@ -54,6 +54,16 @@
   run_once: true
   delegate_to: "{{ administrative_master_node }}"
   block:
+    - name: "Kubernetes Upgrade: -- Remove leftover backup pod --"
+      # pod spec is immutable: a pod stuck from a previous run must be
+      # deleted before a fixed definition can be applied
+      kubernetes.core.k8s:
+        state: absent
+        kind: Pod
+        namespace: kube-system
+        name: kubernetes-upgrade-etcd-backup
+      failed_when: false
+
     - name: "Kubernetes Upgrade: -- Run etcd snapshot pod --"
       kubernetes.core.k8s:
         state: present
@@ -65,6 +75,10 @@
             namespace: kube-system
           spec:
             nodeName: "{{ administrative_master_node | lower }}"
+            # hostNetwork is required: etcd listens on the node's 127.0.0.1,
+            # which is unreachable from the pod network namespace
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             restartPolicy: Never
             containers:
               - name: etcdctl
@@ -95,9 +109,20 @@
         namespace: kube-system
         name: kubernetes-upgrade-etcd-backup
       register: kubernetes_upgrade_backup_pod
-      until: kubernetes_upgrade_backup_pod.resources[0].status.phase | default('') == 'Succeeded'
+      until: (kubernetes_upgrade_backup_pod.resources[0].status.phase | default('')) in ['Succeeded', 'Failed']
       retries: 20
       delay: 5
+
+    - name: "Kubernetes Upgrade: -- Show backup pod logs on failure --"
+      ansible.builtin.command:
+        cmd: kubectl -n kube-system logs kubernetes-upgrade-etcd-backup
+      when: kubernetes_upgrade_backup_pod.resources[0].status.phase == 'Failed'
+      changed_when: false
+
+    - name: "Kubernetes Upgrade: -- Fail if snapshot pod failed --"
+      ansible.builtin.fail:
+        msg: "etcd snapshot pod failed — see logs above"
+      when: kubernetes_upgrade_backup_pod.resources[0].status.phase == 'Failed'
 
     - name: "Kubernetes Upgrade: -- Remove etcd snapshot pod --"
       kubernetes.core.k8s:
