@@ -22,19 +22,41 @@
       ansible.builtin.set_fact:
         kubernetes_upgrade_current_version: "{{ (kubernetes_upgrade_kubectl_version.stdout | from_json).serverVersion.gitVersion | regex_replace('^v', '') }}"
 
+    - name: "Kubernetes Upgrade: -- Get node kubelet versions --"
+      ansible.builtin.command:
+        cmd: kubectl get nodes -o json
+      register: kubernetes_upgrade_nodes_json
+      delegate_to: "{{ administrative_master_node }}"
+      changed_when: false
+
+    - name: "Kubernetes Upgrade: -- Set version facts and lagging nodes --"
+      # cluster == target is a valid RESUME state: control plane already
+      # upgraded, some kubelets may still lag behind
+      ansible.builtin.set_fact:
+        kubernetes_upgrade_cur: "{{ kubernetes_upgrade_current_version.split('.') | map('int') | list }}"
+        kubernetes_upgrade_tgt: "{{ kubernetes_upgrade_version.split('.') | map('int') | list }}"
+        kubernetes_upgrade_lagging_nodes: "{{ kubernetes_upgrade_nodes_json.stdout | from_json
+            | json_query('items[?status.nodeInfo.kubeletVersion != `v' ~ kubernetes_upgrade_version ~ '`].metadata.name') }}"
+
+    - name: "Kubernetes Upgrade: -- Show lagging nodes --"
+      ansible.builtin.debug:
+        msg: "Nodes still below v{{ kubernetes_upgrade_version }}: {{ kubernetes_upgrade_lagging_nodes | join(', ') | default('<none>') }}"
+
     - name: "Kubernetes Upgrade: -- Check version step --"
       ansible.builtin.fail:
         msg: >-
-          Unsupported upgrade step {{ kubernetes_upgrade_current_version }} -> {{ kubernetes_upgrade_version }}:
-          one minor at a time only, patch upgrades allowed.
-          Run kubernetes_upgrade_cluster repeatedly for multi-step upgrades.
+          {{ 'Cluster is already at v' ~ kubernetes_upgrade_version ~ ' — nothing to upgrade'
+             if (kubernetes_upgrade_tgt == kubernetes_upgrade_cur) and (kubernetes_upgrade_lagging_nodes | length == 0)
+             else ('Downgrade ' ~ kubernetes_upgrade_current_version ~ ' -> ' ~ kubernetes_upgrade_version ~ ' is not supported'
+                   if kubernetes_upgrade_tgt < kubernetes_upgrade_cur
+                   else ('Unsupported upgrade step ' ~ kubernetes_upgrade_current_version ~ ' -> ' ~ kubernetes_upgrade_version ~ ':
+                         one minor at a time only, patch upgrades allowed.
+                         Run kubernetes_upgrade_cluster repeatedly for multi-step upgrades.' | trim)) }}
       when: >-
-        not (
-          (kubernetes_upgrade_version.split('.')[0] | int == kubernetes_upgrade_current_version.split('.')[0] | int)
-          and ((kubernetes_upgrade_version.split('.')[1] | int == kubernetes_upgrade_current_version.split('.')[1] | int + 1)
-               or (kubernetes_upgrade_version.split('.')[1] | int == kubernetes_upgrade_current_version.split('.')[1] | int
-                   and kubernetes_upgrade_version.split('.')[2] | int > kubernetes_upgrade_current_version.split('.')[2] | int))
-        )
+        (kubernetes_upgrade_tgt < kubernetes_upgrade_cur)
+        or ((kubernetes_upgrade_tgt == kubernetes_upgrade_cur) and (kubernetes_upgrade_lagging_nodes | length == 0))
+        or (kubernetes_upgrade_tgt[0] != kubernetes_upgrade_cur[0])
+        or (kubernetes_upgrade_tgt[1] >= kubernetes_upgrade_cur[1] + 2)
 
     - name: "Kubernetes Upgrade: -- Check all nodes are Ready --"
       ansible.builtin.command:
@@ -168,21 +190,26 @@
             kubernetes_upgrade_node: "{{ administrative_master_node }}"
 
         - name: "Kubernetes Upgrade: -- Apply upgrade on first control-plane node --"
+          # skipped in resume mode: control plane already at the target
+          # (cluster version == target), only kubelets lag behind
           ansible.builtin.command:
             cmd: "kubeadm upgrade apply --yes v{{ kubernetes_upgrade_version }}"
           delegate_to: "{{ administrative_master_node }}"
+          when: kubernetes_upgrade_current_version != kubernetes_upgrade_version
           changed_when: true
           register: kubernetes_upgrade_apply_result
 
         - name: "Kubernetes Upgrade: -- Show upgrade apply result --"
           ansible.builtin.debug:
             var: kubernetes_upgrade_apply_result
+          when: kubernetes_upgrade_apply_result is defined
 
         - name: "Kubernetes Upgrade: -- Restart kubelet on first control-plane node --"
           ansible.builtin.systemd:
             name: kubelet
             state: restarted
           delegate_to: "{{ administrative_master_node }}"
+          when: kubernetes_upgrade_current_version != kubernetes_upgrade_version
 
     - name: "Kubernetes Upgrade: -- Skipped first control-plane node --"
       ansible.builtin.debug:
@@ -222,7 +249,8 @@
       ansible.builtin.debug:
         var: kubernetes_upgrade_nodes_result.stdout_lines
 
-    - name: "Kubernetes Upgrade: -- Get kubelet versions --"
+    - name: "Kubernetes Upgrade: -- Refresh lagging nodes --"
+      # re-run of the validation-time list against the upgraded cluster
       ansible.builtin.command:
         cmd: kubectl get nodes -o json
       register: kubernetes_upgrade_nodes_json
