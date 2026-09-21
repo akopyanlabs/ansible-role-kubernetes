@@ -169,7 +169,7 @@
 
         - name: "Kubernetes Upgrade: -- Apply upgrade on first control-plane node --"
           ansible.builtin.command:
-            cmd: "kubeadm upgrade apply v{{ kubernetes_upgrade_version }}"
+            cmd: "kubeadm upgrade apply --yes v{{ kubernetes_upgrade_version }}"
           delegate_to: "{{ administrative_master_node }}"
           changed_when: true
           register: kubernetes_upgrade_apply_result
