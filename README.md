@@ -8,6 +8,7 @@
 
 - Python `3.11+`
 - Установленные Python-зависимости из [requirements.txt](requirements.txt)
+  (включая `jmespath` — нужен фильтру `json_query` в upgrade-флоу)
 - Ansible-контроллер с доступом по SSH ко всем нодам
 - Подготовленный inventory с группами master и worker нод
 
