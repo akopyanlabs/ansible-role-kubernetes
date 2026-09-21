@@ -4,24 +4,25 @@
 
 Формат ориентирован на Keep a Changelog.
 
-## [Unreleased]
-
-### Changed
-
-- **Список пакетов**: `kubernetes_packages` собирается из `kubernetes_versioned_packages` + `kubernetes_static_packages`; в vars достаточно переопределить версионную часть, статические (cri-tools, python3-kubernetes) подтягиваются автоматически. Прямой override `kubernetes_packages` по-прежнему работает.
-- unhold/hold в upgrade-флоу и `apt-mark hold` в components используют имена, вычисленные из specs пакетов, вместо хардкода kubeadm/kubelet/kubectl.
+## [1.5.0] - 2026-09-21
 
 ### Added
 
 - **Upgrade кластера** (тег `kubernetes_upgrade_cluster`, `tasks/upgrade/`):
-  - предусловия: формат целевой версии, шаг ≤ 1 minor, все ноды Ready;
-  - опциональный снапшот etcd перед апгрейдом (под с etcdctl на admin-ноде, образ `kubernetes_upgrade_etcd_image`);
-  - последовательный upgrade: admin-мастер (`kubeadm upgrade apply`) → остальные мастера (`kubeadm upgrade node`) → воркеры (cordon/drain → upgrade → uncordon → ожидание Ready);
-  - unhold → установка `kubernetes_upgrade_packages` → hold для apt и dnf;
+  - предусловия: формат целевой версии, шаг ≤ 1 minor, все ноды Ready; resume-режим: кластер на целевой версии при отстающих kubelet — разрешён, уже обновлённые ноды (и их подтверждения) пропускаются;
+  - опциональный снапшот etcd перед апгрейдом (под с etcdctl на admin-ноде, `hostNetwork`, образ `kubernetes_upgrade_etcd_image`);
+  - последовательный upgrade: admin-мастер (`kubeadm upgrade apply --yes`) → остальные мастера (`kubeadm upgrade node`) → воркеры (cordon/drain → upgrade → uncordon → ожидание Ready);
+  - unhold → установка `kubernetes_upgrade_packages` → hold для apt и dnf; имена пакетов вычисляются из specs;
   - опциональное обновление pause-образа в config.toml (`kubernetes_upgrade_sandbox_image`);
   - режим подтверждения `kubernetes_upgrade_confirm: true` — yes/no перед каждым хостом (`no` пропускает ноду);
   - apt-репозиторий переключается на целевой minor автоматически (pkgs.k8s.io версионирован по minor); для dnf — опциональная `kubernetes_upgrade_dnf_repo`.
-- **sysctl**: параметры вынесены в управляемый файл `/etc/sysctl.d/99-kubernetes.conf` (включая резервирование NodePort-диапазона), применение через `sysctl --system`.
+- `jmespath` в requirements.txt (нужен `json_query` в upgrade-флоу).
+
+### Changed
+
+- **sysctl**: параметры вынесены в управляемый файл `/etc/sysctl.d/99-kubernetes.conf` (включая резервирование NodePort-диапазона), применение через `sysctl --system` — переживают ребут.
+- **Список пакетов**: `kubernetes_packages` собирается из `kubernetes_versioned_packages` + `kubernetes_static_packages`; в vars достаточно переопределить версионную часть, статические (cri-tools, python3-kubernetes) подтягиваются автоматически. Прямой override `kubernetes_packages` по-прежнему работает.
+- `apt-mark hold` в components использует имя пакета (без `=версии` из spec).
 
 ## [1.4.1] - 2026-09-20
 
