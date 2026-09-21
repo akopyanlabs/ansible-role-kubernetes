@@ -188,7 +188,13 @@
         - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) not in ['yes', 'no']
 
     - name: "Kubernetes Upgrade: -- First control-plane flow --"
-      when: (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) != 'no'
+      # runs only when the node has work (fresh run or its kubelet lags);
+      # otherwise unhold would leave the already-upgraded node's packages
+      # unlocked with no following install to re-hold them
+      when: >-
+        (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) != 'no'
+        and (kubernetes_upgrade_current_version != kubernetes_upgrade_version
+             or administrative_master_node in kubernetes_upgrade_lagging_nodes)
       block:
         - name: "Kubernetes Upgrade: -- Packages on first control-plane node --"
           ansible.builtin.include_tasks:
