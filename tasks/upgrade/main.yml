@@ -168,10 +168,17 @@
   run_once: true
   block:
     - name: "Kubernetes Upgrade: -- Confirm upgrade of the first control-plane node --"
+      # asked only when this node still has work to do (fresh run or its
+      # kubelet lags); in resume mode with the node already upgraded the
+      # whole block turns into a no-op and no prompt appears
       ansible.builtin.pause:
         prompt: "Upgrade {{ administrative_master_node }} (FIRST control-plane node) to v{{ kubernetes_upgrade_version }}? (yes/no, no skips it — note: secondary nodes will then fail): "
       register: kubernetes_upgrade_confirm_result
-      when: kubernetes_upgrade_confirm | bool
+      when:
+        - kubernetes_upgrade_confirm | bool
+        - >-
+          kubernetes_upgrade_current_version != kubernetes_upgrade_version
+          or administrative_master_node in kubernetes_upgrade_lagging_nodes
 
     - name: "Kubernetes Upgrade: -- Abort on invalid confirmation --"
       ansible.builtin.fail:
@@ -209,7 +216,7 @@
             name: kubelet
             state: restarted
           delegate_to: "{{ administrative_master_node }}"
-          when: kubernetes_upgrade_current_version != kubernetes_upgrade_version
+          when: administrative_master_node in kubernetes_upgrade_lagging_nodes
 
     - name: "Kubernetes Upgrade: -- Skipped first control-plane node --"
       ansible.builtin.debug:
@@ -219,9 +226,10 @@
         - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) == 'no'
 
 - name: "Kubernetes Upgrade: -- Upgrade secondary control-plane nodes --"
+  # lagging nodes only: already-upgraded nodes are skipped silently
   ansible.builtin.include_tasks:
     file: upgrade/node-upgrade.yml
-  loop: "{{ groups[kubernetes_master_group_name] | difference([administrative_master_node]) }}"
+  loop: "{{ groups[kubernetes_master_group_name] | difference([administrative_master_node]) | intersect(kubernetes_upgrade_lagging_nodes) }}"
   loop_control:
     loop_var: kubernetes_upgrade_node
   run_once: true
@@ -229,7 +237,7 @@
 - name: "Kubernetes Upgrade: -- Upgrade worker nodes --"
   ansible.builtin.include_tasks:
     file: upgrade/node-worker.yml
-  loop: "{{ groups[kubernetes_worker_group_name] | default([]) }}"
+  loop: "{{ groups[kubernetes_worker_group_name] | default([]) | intersect(kubernetes_upgrade_lagging_nodes) }}"
   loop_control:
     loop_var: kubernetes_upgrade_node
   run_once: true
