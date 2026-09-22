@@ -4,11 +4,19 @@
 
 Формат ориентирован на Keep a Changelog.
 
-## [Unreleased]
+## [1.5.1] - 2026-09-21
 
 ### Added
 
 - `kubernetes_first_init_auto_confirm` (дефолт `false`) — неинтерактивное подтверждение первичной инициализации; синхронизировано с приватным репозиторием.
+
+### Changed
+
+- **`kubernetes_upgrade_confirm` теперь `true` по умолчанию** — при upgrade подтверждение каждого хоста обязательно; автоматический режим — через `-e kubernetes_upgrade_confirm=false`.
+
+### Fixed
+
+- docker apt-репозиторий добавляется только на Debian (`ansible_distribution == 'Debian'`) — не ломает другие apt-дистрибутивы, где containerd ставится из собственных репозиториев.
 
 ## [1.5.0] - 2026-09-21
 
