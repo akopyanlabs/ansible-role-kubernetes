@@ -74,6 +74,7 @@ haproxy-state --watch 2
 
 ```yaml
 kubernetes_cluster_name: "kubernetes"
+kubernetes_first_init_auto_confirm: false
 kubernetes_version: "1.33"
 kubernetes_kubectl_user_home: "{{ ansible_user_dir }}"
 kubernetes_master_group_name: "kubernetes_master"
@@ -400,6 +401,9 @@ ansible-playbook -i inventory.yml play-kubernetes.yml --tags kubernetes_upgrade_
 ```bash
 # Полная первичная инициализация
 ansible-playbook -i inventory.yml play-kubernetes.yml --tags kubernetes_first_init
+
+# Полная первичная инициализация без интерактивного подтверждения
+ansible-playbook -i inventory.yml play-kubernetes.yml --tags kubernetes_first_init -e kubernetes_first_init_auto_confirm=true
 
 # Добавить worker-ноды
 ansible-playbook -i inventory.yml play-kubernetes.yml --tags kubernetes_add_worker_node

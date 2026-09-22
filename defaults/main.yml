@@ -41,6 +41,8 @@ kubernetes_config_dir: "/etc/kubernetes"
 kubernetes_manifests_dir: "{{ kubernetes_config_dir }}/manifests"
 kubernetes_tmp_configs_dir: /tmp
 kubernetes_cluster_name: "kubernetes"
+# Set to true for non-interactive first cluster initialization
+kubernetes_first_init_auto_confirm: false
 kubernetes_pod_cidr: "10.137.0.0/18"
 kubernetes_service_cidr: "10.137.64.0/18"
 kubernetes_version: "1.36"

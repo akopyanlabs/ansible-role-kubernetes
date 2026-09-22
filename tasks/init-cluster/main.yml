@@ -34,14 +34,24 @@
       ansible.builtin.pause:
         prompt: "Attention!!! You are about to initialize the Kubernetes cluster. Are you sure? (yes/no)"
       register: confirmation
-      when: not kubernetes_admin_conf_stat.stat.exists
+      when:
+        - not kubernetes_admin_conf_stat.stat.exists
+        - not (kubernetes_first_init_auto_confirm | bool)
+
+    - name: "Kubernetes: -- Confirm cluster initialization automatically --"
+      ansible.builtin.debug:
+        msg: "Cluster initialization was confirmed by kubernetes_first_init_auto_confirm=true."
+      when:
+        - not kubernetes_admin_conf_stat.stat.exists
+        - kubernetes_first_init_auto_confirm | bool
 
     - name: Fail if user did not confirm
       ansible.builtin.fail:
         msg: "Action canceled by the user."
       when:
         - not kubernetes_admin_conf_stat.stat.exists
-        - confirmation.user_input | lower != 'yes'
+        - not (kubernetes_first_init_auto_confirm | bool)
+        - confirmation.user_input | default('') | lower != 'yes'
 
 
     - name: "Kubernetes: -- Run kubeadm init --"
