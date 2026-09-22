@@ -234,7 +234,7 @@ kubernetes_core_dns_custom_config:
 
 # Cluster upgrade (tag: kubernetes_upgrade_cluster)
 kubernetes_upgrade_version: "" # exact target X.Y.Z, e.g. "1.34.3"
-kubernetes_upgrade_confirm: false # ask yes/no before each node (no skips the node)
+kubernetes_upgrade_confirm: true # ask yes/no before each node (no skips the node)
 kubernetes_upgrade_etcd_backup: true
 kubernetes_upgrade_etcd_image: "{{ kubernetes_image_repository }}/etcd:3.5.16-0"
 kubernetes_upgrade_drain: true # drain/uncordon workers during upgrade

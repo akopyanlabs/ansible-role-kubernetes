@@ -351,7 +351,7 @@ admin-мастер (`kubeadm upgrade apply`) → остальные мастер
 
 ```yaml
 kubernetes_upgrade_version: "1.34.3"   # точная версия X.Y.Z, обязательна
-kubernetes_upgrade_confirm: false      # yes/no перед каждым хостом (no = пропустить)
+kubernetes_upgrade_confirm: true      # yes/no перед каждым хостом (no = пропустить)
 kubernetes_upgrade_etcd_backup: true   # снапшот etcd до апгрейда
 kubernetes_upgrade_drain: true         # drain/uncordon воркеров
 # опционально: выровнять pause-образ под новый minor
@@ -389,7 +389,8 @@ ansible-playbook -i inventory.yml play-kubernetes.yml --tags kubernetes_upgrade_
 - `kubernetes_add_node_label`: проставление labels нодам
 - `kubernetes_cis_settings`: применение CIS-настроек
 - `kubernetes_fetch_admin_conf`: скачать `admin.conf` на ansible controller
-- `kubernetes_upgrade_cluster`: upgrade кластера (см. раздел выше)- `kubernetes_install_cni`: установка Calico
+- `kubernetes_upgrade_cluster`: upgrade кластера (см. раздел выше)
+- `kubernetes_install_cni`: установка Calico
 - `kubernetes_install_node_local_dns`: установка NodeLocal DNS
 - `kubernetes_patch_coredns`: патч CoreDNS
 - `kubernetes_install_kubelet_csr_approver`: установка kubelet CSR approver
