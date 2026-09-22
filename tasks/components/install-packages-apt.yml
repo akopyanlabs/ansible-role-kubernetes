@@ -44,6 +44,7 @@
     url: https://download.docker.com/linux/debian/gpg
     dest: /etc/apt/trusted.gpg.d/docker.asc
     mode: '0644'
+  when: ansible_distribution == 'Debian'
 
 - name: Add docker apt repository
   ansible.builtin.copy:
@@ -51,6 +52,7 @@
     content: |
       deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable
     mode: '0644'
+  when: ansible_distribution == 'Debian'
 
 - name: Update apt cache after adding Kubernetes repo
   ansible.builtin.apt:
