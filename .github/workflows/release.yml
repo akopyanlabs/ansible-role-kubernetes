@@ -1,0 +1,46 @@
+name: release
+
+# Packs the role into a tar.gz archive on every version tag (v*)
+# and attaches it (plus sha256) to a GitHub Release.
+# Tag message (annotated tags) becomes the release notes.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pack role archive
+        run: |
+          git archive \
+            --format=tar.gz \
+            --prefix="ansible-role-kubernetes/" \
+            --output="ansible-role-kubernetes-${GITHUB_REF_NAME}.tar.gz" \
+            "${GITHUB_REF_NAME}"
+          sha256sum "ansible-role-kubernetes-${GITHUB_REF_NAME}.tar.gz" \
+            > "ansible-role-kubernetes-${GITHUB_REF_NAME}.tar.gz.sha256"
+          echo "--- archive contents (top level) ---"
+          tar -tzf "ansible-role-kubernetes-${GITHUB_REF_NAME}.tar.gz" | cut -d/ -f2 | sort -u | head -20
+
+      - name: Create GitHub release with the archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "ansible-role-kubernetes-${GITHUB_REF_NAME}.tar.gz" \
+            "ansible-role-kubernetes-${GITHUB_REF_NAME}.tar.gz.sha256" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-from-tag \
+          || gh release upload "${GITHUB_REF_NAME}" \
+            "ansible-role-kubernetes-${GITHUB_REF_NAME}.tar.gz" \
+            "ansible-role-kubernetes-${GITHUB_REF_NAME}.tar.gz.sha256" \
+            --clobber

@@ -4,6 +4,12 @@
 
 Формат ориентирован на Keep a Changelog.
 
+## [Unreleased]
+
+### Added
+
+- CI (`.github/workflows/release.yml`): при пуше тега `v*` роль пакуется в `ansible-role-kubernetes-<tag>.tar.gz` (через `git archive`, префикс для `ansible-galaxy install`) и аттачится к GitHub Release вместе с sha256; сообщение аннотированного тега становится notes релиза. Служебные файлы исключены из архива через `export-ignore`.
+
 ## [1.5.1] - 2026-09-21
 
 ### Added

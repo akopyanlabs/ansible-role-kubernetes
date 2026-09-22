@@ -1,0 +1,4 @@
+# exclude service files from release archives (git archive / CI)
+.github export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
