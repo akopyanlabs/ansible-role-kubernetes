@@ -4,16 +4,17 @@
 
 Формат ориентирован на Keep a Changelog.
 
-## [Unreleased]
+## [1.5.2] - 2026-09-23
 
 ### Added
 
-- `tools/push-images.sh`: компонента `k8s` теперь публикует полный набор образов, пиннутый конкретной версией kubeadm (control-plane, etcd, coredns, pause). Теги etcd/coredns/pause зашиты в бинарник kubeadm, поэтому скрипт запускает kubeadm точно указанной версии: локальный при совпадении, иначе официальный бинарник с dl.k8s.io (со сверкой sha256) в docker-контейнере; временный бинарник удаляется после выполнения.
-- CI (`.github/workflows/release.yml`): при пуше тега `v*` роль пакуется в `ansible-role-kubernetes-<tag>.tar.gz` (через `git archive`, префикс для `ansible-galaxy install`) и аттачится к GitHub Release вместе с sha256; сообщение аннотированного тега становится notes релиза. Служебные файлы исключены из архива через `export-ignore`.
+- `tools/push-images.sh`: компонента `k8s` теперь публикует полный набор образов, пиннутый конкретной версией kubeadm (control-plane, etcd, coredns, pause). Теги etcd/coredns/pause зашиты в бинарник kubeadm, поэтому скрипт запускает kubeadm точно указанной версии: локальный при совпадении, иначе официальный бинарник с dl.k8s.io (со сверкой sha256) в docker-контейнере платформенной архитектуры; временный бинарник удаляется после выполнения (EXIT trap). Проверено сквозным прогоном для v1.34.1 (etcd 3.6.4-0, coredns v1.12.1, pause 3.10.1).
 
 ## [1.5.1] - 2026-09-21
 
 ### Added
+
+- CI (`.github/workflows/release.yml`): при пуше тега `v*` роль пакуется в `ansible-role-kubernetes-<tag>.tar.gz` (через `git archive`, префикс для `ansible-galaxy install`) и аттачится к GitHub Release вместе с sha256; сообщение аннотированного тега становится notes релиза. Служебные файлы исключены из архива через `export-ignore`.
 
 - `kubernetes_first_init_auto_confirm` (дефолт `false`) — неинтерактивное подтверждение первичной инициализации; синхронизировано с приватным репозиторием.
 
