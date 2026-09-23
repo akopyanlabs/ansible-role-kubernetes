@@ -169,7 +169,7 @@ templates/manifests/cni/calico/
 kubeadm (control-plane, etcd, coredns, pause): теги etcd/coredns/pause
 зашиты в бинарник kubeadm, поэтому скрипт запускает kubeadm именно
 указанной версии — локальный бинарник при точном совпадении, иначе
-официальный бинарник с cdn.dl.k8s.io (со сверкой sha256) в
+официальный бинарник с dl.k8s.io (со сверкой sha256) в
 docker-контейнере; временный бинарник удаляется после выполнения.
 При работе кластера через приватный registry выравнивайте
 `kubernetes_containerd_sandbox_image` в vars с пином kubeadm вашей версии.

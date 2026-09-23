@@ -68,7 +68,7 @@ Examples:
 Note: etcd/coredns/pause tags are baked into the kubeadm BINARY, not into
 --kubernetes-version. The script runs kubeadm of exactly the requested
 version: the local binary when its version matches, otherwise the official
-binary downloaded from cdn.dl.k8s.io and executed in a docker container
+binary downloaded from dl.k8s.io and executed in a docker container
 (the temporary binary is removed on exit).
 EOF
 }
@@ -119,7 +119,7 @@ resolve_kubeadm_pins() {
     KUBEADM_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/push-images.XXXXXX")"
     local bin="${KUBEADM_TMPDIR}/kubeadm"
     local list="${KUBEADM_TMPDIR}/images.txt"
-    local base="https://cdn.dl.k8s.io/release/${vver}/bin/linux/${arch}"
+    local base="https://dl.k8s.io/${vver}/bin/linux/${arch}"
 
     echo "==> Downloading kubeadm ${vver} (linux/${arch})" >&2
     curl -fsSL "${base}/kubeadm" -o "${bin}" \
