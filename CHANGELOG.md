@@ -8,6 +8,7 @@
 
 ### Added
 
+- `tools/push-images.sh`: компонента `k8s` теперь публикует полный набор образов, пиннутый конкретной версией kubeadm (control-plane, etcd, coredns, pause). Теги etcd/coredns/pause зашиты в бинарник kubeadm, поэтому скрипт запускает kubeadm точно указанной версии: локальный при совпадении, иначе официальный бинарник с cdn.dl.k8s.io (со сверкой sha256) в docker-контейнере; временный бинарник удаляется после выполнения.
 - CI (`.github/workflows/release.yml`): при пуше тега `v*` роль пакуется в `ansible-role-kubernetes-<tag>.tar.gz` (через `git archive`, префикс для `ansible-galaxy install`) и аттачится к GitHub Release вместе с sha256; сообщение аннотированного тега становится notes релиза. Служебные файлы исключены из архива через `export-ignore`.
 
 ## [1.5.1] - 2026-09-21

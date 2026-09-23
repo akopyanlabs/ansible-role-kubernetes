@@ -44,7 +44,9 @@ Usage: $(basename "$0") <target-registry> [component...] [options]
 Push container images used by the kubernetes ansible role to a private registry.
 
 Components:
-  k8s       Core k8s images (pause, apiserver, controller-manager, scheduler, proxy)
+  k8s       Core k8s images pinned by the exact kubeadm version:
+            control-plane (apiserver, controller-manager, scheduler, proxy),
+            etcd, coredns, pause
   calico    Tigera operator + Calico CNI images
   metrics   metrics-server
   dns       NodeLocal DNS cache
@@ -63,8 +65,11 @@ Examples:
   $(basename "$0") harbor.company.local k8s --k8s-version 1.33.3
   $(basename "$0") harbor.company.local all --k8s-version 1.33.3
 
-Note: etcd and coredns images are not included. Use:
-  kubeadm config images list --kubernetes-version=X.Y.Z
+Note: etcd/coredns/pause tags are baked into the kubeadm BINARY, not into
+--kubernetes-version. The script runs kubeadm of exactly the requested
+version: the local binary when its version matches, otherwise the official
+binary downloaded from cdn.dl.k8s.io and executed in a docker container
+(the temporary binary is removed on exit).
 EOF
 }
 
@@ -72,15 +77,80 @@ add_image() {
     IMAGES+=("$1")
 }
 
-# -- k8s: pause + core component images
-add_k8s_images() {
-    local k8s_ver="$1"
-    local pause_tag
-    pause_tag=$(get_default kubernetes_containerd_sandbox_image | sed 's|.*/pause:||')
+# -- k8s: images pinned by the kubeadm binary of the exact version
+KUBEADM_TMPDIR=""
+KUBEADM_PINS=()
+cleanup() {
+    if [[ -n "${KUBEADM_TMPDIR}" && -d "${KUBEADM_TMPDIR}" ]]; then
+        rm -rf "${KUBEADM_TMPDIR}"
+    fi
+}
+# preserve the exit status through the cleanup trap
+trap 'rc=$?; cleanup; exit "${rc}"' EXIT
 
-    add_image "registry.k8s.io/pause:${pause_tag}"
-    for img in kube-apiserver kube-controller-manager kube-scheduler kube-proxy; do
-        add_image "registry.k8s.io/${img}:v${k8s_ver}"
+# Runs in the main shell process: fills KUBEADM_PINS so that failures exit
+# the script and the cleanup trap sees the temp dir
+resolve_kubeadm_pins() {
+    local ver="$1" vver="v$1"
+    KUBEADM_PINS=()
+
+    # fast path: local kubeadm of exactly this version
+    if command -v kubeadm >/dev/null 2>&1; then
+        if [[ "$(kubeadm version -o short 2>/dev/null)" == "${vver}" ]]; then
+            local line
+            while read -r line; do
+                [[ -n "${line}" ]] && KUBEADM_PINS+=("${line}")
+            done < <(kubeadm config images list --kubernetes-version "${vver}" --image-repository registry.k8s.io)
+            return 0
+        fi
+        echo "==> Local kubeadm is not ${vver}, using an exact-version binary in docker" >&2
+    fi
+
+    command -v docker >/dev/null 2>&1 \
+        || { echo "ERROR: docker is required to run kubeadm ${vver}" >&2; exit 1; }
+
+    local arch
+    case "$(uname -m)" in
+        x86_64)        arch=amd64 ;;
+        aarch64|arm64) arch=arm64 ;;
+        *) echo "ERROR: unsupported architecture $(uname -m)" >&2; exit 1 ;;
+    esac
+
+    KUBEADM_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/push-images.XXXXXX")"
+    local bin="${KUBEADM_TMPDIR}/kubeadm"
+    local list="${KUBEADM_TMPDIR}/images.txt"
+    local base="https://cdn.dl.k8s.io/release/${vver}/bin/linux/${arch}"
+
+    echo "==> Downloading kubeadm ${vver} (linux/${arch})" >&2
+    curl -fsSL "${base}/kubeadm" -o "${bin}" \
+        || { echo "ERROR: failed to download ${base}/kubeadm" >&2; exit 1; }
+    curl -fsSL "${base}/kubeadm.sha256" -o "${KUBEADM_TMPDIR}/kubeadm.sha256" \
+        || { echo "ERROR: failed to download ${base}/kubeadm.sha256" >&2; exit 1; }
+
+    (
+        cd "${KUBEADM_TMPDIR}"
+        sha256sum -c kubeadm.sha256 >/dev/null 2>&1 \
+            || shasum -a 256 -c kubeadm.sha256 >/dev/null 2>&1
+    ) || { echo "ERROR: kubeadm checksum mismatch" >&2; exit 1; }
+
+    chmod +x "${bin}"
+    # kubeadm is a static binary; `config images list` is client-side only
+    docker run --rm --platform "linux/${arch}" -v "${bin}:/kubeadm:ro" alpine:3 \
+        /kubeadm config images list --kubernetes-version "${vver}" \
+        --image-repository registry.k8s.io > "${list}" \
+        || { echo "ERROR: kubeadm ${vver} failed to list images" >&2; exit 1; }
+
+    local line
+    while read -r line; do
+        [[ -n "${line}" ]] && KUBEADM_PINS+=("${line}")
+    done < "${list}"
+}
+
+add_k8s_images() {
+    resolve_kubeadm_pins "$1"
+    local img
+    for img in "${KUBEADM_PINS[@]}"; do
+        add_image "${img}"
     done
 }
 
