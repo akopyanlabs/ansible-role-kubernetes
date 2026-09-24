@@ -33,6 +33,7 @@ get_default() {
 }
 
 IMAGES=()
+DESTS=()
 DRY_RUN=false
 K8S_VERSION=""
 CALICO_VERSION=""
@@ -73,8 +74,12 @@ binary downloaded from dl.k8s.io and executed in a docker container
 EOF
 }
 
+# add_image <source> [dest-suffix]
+# dest-suffix defaults to the path after the registry host; the k8s
+# component passes a flat basename to match kubeadm --image-repository
 add_image() {
     IMAGES+=("$1")
+    DESTS+=("${2:-${1#*/}}")
 }
 
 # -- k8s: images pinned by the kubeadm binary of the exact version
@@ -150,7 +155,9 @@ add_k8s_images() {
     resolve_kubeadm_pins "$1"
     local img
     for img in "${KUBEADM_PINS[@]}"; do
-        add_image "${img}"
+        # flat layout: kubeadm --image-repository expects <registry>/coredns:vX
+        # even though the source is registry.k8s.io/coredns/coredns:vX
+        add_image "${img}" "${img##*/}"
     done
 }
 
@@ -303,7 +310,7 @@ echo ""
 i=0
 for src in "${IMAGES[@]}"; do
     i=$((i + 1))
-    dst="${TARGET_REGISTRY}/${src#*/}"
+    dst="${TARGET_REGISTRY}/${DESTS[i-1]}"
     echo "  [${i}/${#IMAGES[@]}] ${src} -> ${dst}"
 
     if [[ "${DRY_RUN}" == true ]]; then

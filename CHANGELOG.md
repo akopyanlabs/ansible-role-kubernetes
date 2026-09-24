@@ -4,6 +4,12 @@
 
 Формат ориентирован на Keep a Changelog.
 
+## [1.5.4] - 2026-09-24
+
+### Fixed
+
+- `tools/push-images.sh`: k8s-компонента публикуется плоско (`<registry>/coredns:vX`, `<registry>/etcd:X`, `<registry>/pause:X`) — ровно как ожидает `kubeadm --image-repository`; остальные компоненты сохраняют путь после registry (`metrics-server/metrics-server` и т.п.).
+
 ## [1.5.3] - 2026-09-24
 
 ### Changed
