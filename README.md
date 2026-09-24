@@ -380,7 +380,8 @@ ansible-playbook -i inventory.yml play-kubernetes.yml --tags kubernetes_upgrade_
   обновлена — иначе следующий join поставит старую версию;
   для apt репозиторий переключается на целевой minor автоматически;
   для dnf при версионированном репо задайте `kubernetes_upgrade_dnf_repo`;
-- снапшот etcd кладётся в `/var/lib/etcd/snapshot-pre-<version>.db` на admin-ноде;
+- снапшот etcd кладётся в `/var/lib/etcd/snapshot-pre-<версия>-<timestamp>.db`
+  на admin-ноде; хранятся последние три копии, старые удаляются автоматически;
 - пакеты на время апгрейда раслочиваются и лочатся обратно (apt-mark / dnf versionlock);
 - dnf-ветка (RedOS) не тестировалась на живом кластере.
 

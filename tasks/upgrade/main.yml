@@ -86,6 +86,11 @@
         name: kubernetes-upgrade-etcd-backup
       failed_when: false
 
+    - name: "Kubernetes Upgrade: -- Set backup file name --"
+      # controller clock timestamp keeps names unique and lexically sortable
+      ansible.builtin.set_fact:
+        kubernetes_upgrade_backup_file: "snapshot-pre-{{ kubernetes_upgrade_version }}-{{ lookup('pipe', 'date +%Y%m%d%H%M%S') }}.db"
+
     - name: "Kubernetes Upgrade: -- Run etcd snapshot pod --"
       kubernetes.core.k8s:
         state: present
@@ -115,7 +120,7 @@
                     --cacert=/etc/kubernetes/pki/etcd/ca.crt
                     --cert=/etc/kubernetes/pki/etcd/server.crt
                     --key=/etc/kubernetes/pki/etcd/server.key
-                    snapshot save /backup/snapshot-pre-{{ kubernetes_upgrade_version }}.db
+                    snapshot save /backup/{{ kubernetes_upgrade_backup_file }}
                 volumeMounts:
                   - { name: etcd-data, mountPath: /backup }
                   - { name: etcd-certs, mountPath: /etc/kubernetes/pki/etcd, readOnly: true }
@@ -155,13 +160,24 @@
 
     - name: "Kubernetes Upgrade: -- Check snapshot file --"
       ansible.builtin.stat:
-        path: "/var/lib/etcd/snapshot-pre-{{ kubernetes_upgrade_version }}.db"
+        path: "/var/lib/etcd/{{ kubernetes_upgrade_backup_file }}"
       register: kubernetes_upgrade_snapshot_stat
 
     - name: "Kubernetes Upgrade: -- Fail if snapshot is missing --"
       ansible.builtin.fail:
-        msg: "etcd snapshot was not created on {{ administrative_master_node }}:/var/lib/etcd/"
+        msg: "etcd snapshot {{ kubernetes_upgrade_backup_file }} was not created on {{ administrative_master_node }}:/var/lib/etcd/"
       when: not kubernetes_upgrade_snapshot_stat.stat.exists
+
+    - name: "Kubernetes Upgrade: -- Rotate etcd snapshots (keep last 3) --"
+      # matches both the new timestamped names and the legacy snapshot-pre-<ver>.db
+      ansible.builtin.shell: |
+        cd /var/lib/etcd
+        ls -1t snapshot-pre-*.db 2>/dev/null | tail -n +4 | while read -r f; do
+          echo "removing ${f}"
+          rm -f "${f}"
+        done
+      register: kubernetes_upgrade_backup_rotation
+      changed_when: kubernetes_upgrade_backup_rotation.stdout_lines | length > 0
 
 - name: "Kubernetes Upgrade: -- Upgrade first control-plane node --"
   become: true
