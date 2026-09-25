@@ -4,6 +4,12 @@
 
 Формат ориентирован на Keep a Changelog.
 
+## [1.5.6] - 2026-09-25
+
+### Fixed
+
+- **HAProxy healthcheck для API-бэкендов**: `GET /healthz` → `GET /readyz`. `/healthz` зеленеет до полной готовности apiserver (RBAC-авторизатор до синхронизации кэша отказывает всем, fail-closed) — отсюда периодические `User "kubernetes-admin" is forbidden` при перезапусках control-plane: балансировщик считал бэкенд живым и слал в него трафик. `/readyz` держит бэкенд в DOWN до готовности etcd и post-start хуков.
+
 ## [1.5.5] - 2026-09-25
 
 ### Fixed

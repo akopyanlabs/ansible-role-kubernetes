@@ -34,7 +34,12 @@ frontend kube_api_frontend
 backend kube_api_backend
     mode tcp
     balance leastconn
-    option httpchk GET /healthz
+    # readyz, not healthz: an apiserver answers /healthz before its RBAC
+    # authorizer cache is synced (fail-closed denies), which surfaces as
+    # intermittent "User ... is forbidden" during control-plane restarts.
+    # /readyz stays red until etcd and post-start hooks are fully serving,
+    # so the balancer never routes to a half-ready apiserver.
+    option httpchk GET /readyz
     http-check expect status 200
     default-server inter 5s downinter 5s rise 2 fall 2 maxconn 1000 maxqueue 256
 {% for host in groups[kubernetes_master_group_name] %}
