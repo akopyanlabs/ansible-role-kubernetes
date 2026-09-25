@@ -58,17 +58,26 @@
         or (kubernetes_upgrade_tgt[0] != kubernetes_upgrade_cur[0])
         or (kubernetes_upgrade_tgt[1] >= kubernetes_upgrade_cur[1] + 2)
 
-    - name: "Kubernetes Upgrade: -- Check all nodes are Ready --"
-      ansible.builtin.command:
-        cmd: kubectl get nodes --no-headers
-      register: kubernetes_upgrade_nodes_status
-      delegate_to: "{{ administrative_master_node }}"
-      changed_when: false
+    - name: "Kubernetes Upgrade: -- Set not-ready nodes fact --"
+      # readiness by status.conditions, not by kubectl text output:
+      # a cordoned node prints "Ready,SchedulingDisabled" and breaks
+      # naive Ready matching, while its Ready condition is True
+      ansible.builtin.set_fact:
+        kubernetes_upgrade_not_ready: >-
+          {%- set bad = [] -%}
+          {%- for n in (kubernetes_upgrade_nodes_json.stdout | from_json)['items'] -%}
+          {%-   set cond = n.status.conditions | default([])
+                 | selectattr('type', 'equalto', 'Ready') | list -%}
+          {%-   if (cond | length == 0) or (cond[0].status != 'True') -%}
+          {%-     set _ = bad.append(n.metadata.name) -%}
+          {%-   endif -%}
+          {%- endfor -%}
+          {{- bad -}}
 
     - name: "Kubernetes Upgrade: -- Fail if any node is not Ready --"
       ansible.builtin.fail:
-        msg: "Not all nodes are Ready:\n{{ kubernetes_upgrade_nodes_status.stdout }}"
-      when: kubernetes_upgrade_nodes_status.stdout_lines | reject('search', '\sReady(\s|$)') | list | length > 0
+        msg: "Nodes not Ready: {{ kubernetes_upgrade_not_ready | join(', ') }}. SchedulingDisabled (cordoned) nodes are fine."
+      when: kubernetes_upgrade_not_ready | length > 0
 
 - name: "Kubernetes Upgrade: -- Backup etcd --"
   when: kubernetes_upgrade_etcd_backup | bool
