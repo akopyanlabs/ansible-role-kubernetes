@@ -257,10 +257,11 @@
         - (kubernetes_upgrade_confirm_result.user_input | default('yes') | lower) == 'no'
 
 - name: "Kubernetes Upgrade: -- Upgrade secondary control-plane nodes --"
-  # lagging nodes only: already-upgraded nodes are skipped silently
+  # play hosts ∩ lagging: --limit narrows the run, already-upgraded nodes
+  # are skipped silently
   ansible.builtin.include_tasks:
     file: upgrade/node-upgrade.yml
-  loop: "{{ groups[kubernetes_master_group_name] | difference([administrative_master_node]) | intersect(kubernetes_upgrade_lagging_nodes) }}"
+  loop: "{{ ansible_play_hosts | intersect(groups[kubernetes_master_group_name]) | difference([administrative_master_node]) | intersect(kubernetes_upgrade_lagging_nodes) }}"
   loop_control:
     loop_var: kubernetes_upgrade_node
   run_once: true
@@ -268,7 +269,7 @@
 - name: "Kubernetes Upgrade: -- Upgrade worker nodes --"
   ansible.builtin.include_tasks:
     file: upgrade/node-worker.yml
-  loop: "{{ groups[kubernetes_worker_group_name] | default([]) | intersect(kubernetes_upgrade_lagging_nodes) }}"
+  loop: "{{ ansible_play_hosts | intersect(groups[kubernetes_worker_group_name] | default([])) | intersect(kubernetes_upgrade_lagging_nodes) }}"
   loop_control:
     loop_var: kubernetes_upgrade_node
   run_once: true

@@ -1,6 +1,23 @@
 # Package layer for one node being upgraded.
 # Vars: kubernetes_upgrade_node — inventory hostname of the target node.
 
+- name: "Kubernetes Upgrade: -- Gather facts on {{ kubernetes_upgrade_node }} if missing --"
+  # under --limit the target node may be outside the play and carry no facts;
+  # without ansible_pkg_mgr both manager branches skip silently and kubeadm
+  # stays old, breaking the upgrade later
+  ansible.builtin.setup:
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  delegate_facts: true
+  when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr is not defined
+
+- name: "Kubernetes Upgrade: -- Fail on unsupported package manager --"
+  ansible.builtin.fail:
+    msg: >-
+      Cannot determine the package manager on {{ kubernetes_upgrade_node }}
+      (ansible_pkg_mgr={{ hostvars[kubernetes_upgrade_node].ansible_pkg_mgr | default('undefined') }});
+      run with gathered facts or without --limit
+  when: hostvars[kubernetes_upgrade_node].ansible_pkg_mgr | default('') not in ['apt', 'dnf']
+
 - name: "Kubernetes Upgrade: -- Derive package names for lock operations --"
   # apt spec "kubeadm=1.34.3*" and dnf spec "kubeadm-0:1.34.3-1.x86_64"
   # both reduce to the bare name; upgrade packages contain no dashes
