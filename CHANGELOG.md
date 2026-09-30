@@ -4,6 +4,13 @@
 
 Формат ориентирован на Keep a Changelog.
 
+## [1.5.8] - 2026-09-30
+
+### Fixed
+
+- **Гонка containerd в upgrade-флоу**: после рестарта containerd (ветка sandbox-image) systemd возвращался до готовности сокета, и следующий `kubeadm upgrade node/apply` падал на `validate CRI v1 runtime API`. Добавлено ожидание через `ansible.builtin.wait_for` по сокету в конце пакетного слоя — покрывает и per-node флоу, и первого мастера.
+- Путь сокета containerd выведен в переменную `kubernetes_containerd_socket` и используется единообразно в config.toml, crictl.yaml и ожидании готовности.
+
 ## [1.5.7] - 2026-09-25
 
 ### Fixed

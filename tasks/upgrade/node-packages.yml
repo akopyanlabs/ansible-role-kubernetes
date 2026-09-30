@@ -135,3 +135,13 @@
     - kubernetes_upgrade_containerd_config.changed
   delegate_to: "{{ kubernetes_upgrade_node }}"
   become: true
+
+- name: "Kubernetes Upgrade: -- Wait for containerd on {{ kubernetes_upgrade_node }} --"
+  # the systemd restart returns before the socket serves requests again,
+  # and kubeadm fails its "validate CRI v1 runtime API" preflight; the
+  # socket is created by the serving daemon (CRI plugin registers before)
+  ansible.builtin.wait_for:
+    path: "{{ kubernetes_containerd_socket }}"
+    timeout: 60
+  delegate_to: "{{ kubernetes_upgrade_node }}"
+  become: true

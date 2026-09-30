@@ -58,6 +58,7 @@ kubernetes_client_certificate_validity_period: "8760h" # Default: 8760h  # 365 d
 kubernetes_ca_certificate_validity_period: "87600h" # Default: 87600h #  365 days × 24 hours * 10 = 10 years
 
 # Containerd settings
+kubernetes_containerd_socket: "/run/containerd/containerd.sock"
 kubernetes_containerd_cni_bin_dir: "/opt/cni/bin"
 kubernetes_containerd_sandbox_image: "{{ kubernetes_image_repository }}/pause:3.10"
 kubernetes_containerd_package_version: "1.7.27-1"

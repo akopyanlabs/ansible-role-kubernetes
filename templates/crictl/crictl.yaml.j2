@@ -1,5 +1,5 @@
-runtime-endpoint: "unix:///var/run/containerd/containerd.sock"
-image-endpoint: "unix:///var/run/containerd/containerd.sock"
+runtime-endpoint: "unix://{{ kubernetes_containerd_socket }}"
+image-endpoint: "unix://{{ kubernetes_containerd_socket }}"
 timeout: 0
 debug: false
 pull-image-on-create: false
