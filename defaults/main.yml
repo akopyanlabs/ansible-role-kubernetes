@@ -164,7 +164,7 @@ kubernetes_extensions_kubelet_csr_approver_node_labels: "control-plane"
 
 # Kubernetes calico setting
 # Helm chart version determines the operator manifest structure
-kubernetes_calico_chart_version: "v3.32.0"
+kubernetes_calico_chart_version: "v3.32.2"
 kubernetes_calico_cni_image_repository: "quay.io"
 kubernetes_calico_controlplane_replicas: "2"
 kubernetes_calico_controlplane_nodeselector: "control-plane"

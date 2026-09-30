@@ -1,0 +1,34 @@
+installation:
+  enabled: false
+
+# apiServer configures the Calico API server, needed for interacting with
+# the projectcalico.org/v3 suite of APIs.
+apiServer:
+  enabled: false
+
+# goldmane configures the Calico Goldmane flow aggregator.
+goldmane:
+  enabled: false
+
+# whisker configures the Calico Whisker observability UI.
+whisker:
+  enabled: false
+
+# Affinity for the tigera-operator pod.
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: node-role.kubernetes.io/CONTROLPLANE_NODESELECTOR
+              operator: Exists
+
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              k8s-app: tigera-operator
+          topologyKey: kubernetes.io/hostname

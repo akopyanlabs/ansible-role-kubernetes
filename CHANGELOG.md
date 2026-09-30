@@ -4,6 +4,12 @@
 
 Формат ориентирован на Keep a Changelog.
 
+## [1.5.9] - 2026-09-30
+
+### Changed
+
+- **Calico CNI**: Tigera operator chart `v3.32.0` → `v3.32.2` (operator `v1.42.6`); добавлен каталог версионированных манифестов `templates/manifests/cni/calico/v3.32.2/`.
+
 ## [1.5.8] - 2026-09-30
 
 ### Fixed
